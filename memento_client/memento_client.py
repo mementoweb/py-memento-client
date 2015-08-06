@@ -125,9 +125,9 @@ class MementoClient(object):
             return
 
         link_header = self.parse_link_header(org_response.headers.get("Link"))
-        tg_uri = self.get_uri_dt_for_rel(link_header, "timegate")
-        if tg_uri:
-            return tg_uri[0][0]
+        print(link_header)
+        tg = self.get_uri_dt_for_rel(link_header, ["timegate"])
+        return tg["timegate"].get("uri")
 
     @staticmethod
     def convert_to_datetime(dt):
@@ -289,4 +289,4 @@ class MementoClient(object):
 if __name__ == "__main__":
     mc = MementoClient()
     dt = mc.convert_to_datetime("Sun, 01 Apr 2010 12:00:00 GMT")
-    res = mc.get_memento_uri("http://www.google.com", dt)
+    res = mc.get_memento_uri("http://www.mementoweb.org/about/", dt)
