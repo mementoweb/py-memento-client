@@ -13,12 +13,12 @@ This source distribution contains the following folders:
 
 To build this distribution, just type:
 ```
-make
+python setup.py dist
 ```
-and it will create a dist folder containing a tar.gz, tar.bz2, and zip file containing this distribution.
+and it will create a dist folder containing a tar.gz containing this distribution.
 
 To start fresh
 ```
-make clean
+python setup.py clean
 ```
-will remove the build and dist folders.
+will remove the contents of the build and dist folders.
