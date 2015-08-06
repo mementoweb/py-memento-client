@@ -9,7 +9,8 @@ from datetime import datetime
 
 
 DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
-DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
+DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/%s"
+HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
 
 
 class MementoClient(object):
@@ -29,7 +30,7 @@ class MementoClient(object):
         self.timegate_uri = timegate_uri
         self.check_native_timegate = check_native_timegate
 
-    def get_memento_uri(self, org_uri, accept_datetime):
+    def get_memento_uri(self, org_uri, accept_datetime, **kwargs):
         """
 
         :param org_uri: the http uri of the resource
@@ -42,132 +43,136 @@ class MementoClient(object):
             # TODO: error handling
             return
 
+        if not org_uri.startswith("http://") \
+                and not org_uri.startswith("https://"):
+            # TODO: create a relevant exception...
+            raise Exception("Only HTTP URIs are supported, URI %s unrecognized." % org_uri)
+
         if type(accept_datetime) != datetime:
-            raise KeyError("Expecting accept_datetime to be of type datetime")
+            raise KeyError("Expecting accept_datetime to be of type datetime.")
 
+        http_acc_dt = self.convert_to_http_datetime(accept_datetime)
 
-        #timegate_uri = self.timegate_uri
         native_tg = None
         if self.check_native_timegate:
             native_tg = self.get_native_timegate_uri(org_uri, accept_datetime=accept_datetime)
 
-        timegate_uri = native_tg if native_tg else self.timegate_uri
+        timegate_uri = native_tg if native_tg else self.timegate_uri % org_uri
+        print("tg: " + timegate_uri)
 
-        response = self.__head_request(timegate_uri, accept_datetime=accept_datetime)
-        # do head on timegate link
-        # return memento uri from link header
-        # {"first": "",
-        # "prev": "",
-        # "next": "",
-        # "closest": {"dt": datetime obj, "uri": "http://"},
-        # "}
+        response = self.head_request(timegate_uri, accept_datetime=http_acc_dt)
+
+        #print response.headers
+        link_header = response.headers.get("link")
+        #print link_header
+        if not link_header:
+            # TODO: create a "memento exception"
+            raise Exception("The TimeGate (%s) did not return a Link header." % timegate_uri)
+
+        links = self.parse_link_header(link_header)
+        #print links
+        mementos = self.get_uri_dt_for_rel(links,
+                                           ["prev",
+                                            "next",
+                                            "first",
+                                            "last"])
+
+        closest_memento = response.headers.get("Location")
+        #print closest_memento
+        memento_uris = {}
+        memento_uris["closest"] = {}
+        memento_uris["closest"]["uri"] = closest_memento
+        memento_uris["closest"]["datetime"] = self.convert_to_datetime(links.get(closest_memento).get("datetime")[0])
+        for mem in mementos:
+            memento_uris[mem] = {
+                "uri": mementos.get(mem).get("uri"),
+                "datetime": self.convert_to_datetime(mementos.get(mem).get("datetime")[0])
+            }
+
+        return memento_uris
 
     def get_native_timegate_uri(self, org_uri, accept_datetime):
         """
-        Given an original URL and a target datetime,
-        recursively search for the appropriate Memento URL.
+        Given an original URL and an accept datetime,
+        recursively search for the appropriate TimeGate URL.
 
         :param org_uri:
         :param accept_datetime:
         :return:
         """
 
-        #is_timegate = False
-        org_response = self.__head_request(org_uri, accept_datetime=accept_datetime)
-        # START
-        # HEAD URI-Q with Accept-Datetime value
-        # Go to TEST-0
+        org_response = self.head_request(org_uri, accept_datetime=self.convert_to_http_datetime(accept_datetime))
 
-        # FOLLOW
-        # URI-Q = Location (value of HTTP header)
-        # Go to START
         def follow():
             print "following.. " + org_response.headers.get("Location")
             return self.get_native_timegate_uri(org_response.headers.get('Location'), accept_datetime)
 
-        # TEST-0
-        # IF the response from URI-Q contains "Vary: accept-datetime"
-        #    SET TG-FLAG=TRUE
-        #    SET URI-R=URI-Q
-        # Go to TEST-1
         if org_response.headers.get("Vary") and 'accept-datetime' in org_response.headers.get('Vary'):
             print "vary acc-dt found for " + org_uri
-            return org_uri
-            #is_timegate=True
-            #original_url = org_uri
+            return
 
-        # TEST-1
-        # Is URI-Q a Memento?
-        #         YES =>
-        #                 TG-FLAG=FALSE
-        #                 SET URI-R=blank
-        #                 Is the response from URI-Q a 3XX?
-        #                        YES => Go to FOLLOW
-        #                        NO   => STOP SUCCESS
-        #         NO => Go to TEST-2
         if 'Memento-Datetime' in org_response.headers:
             print "mem-dt found for " + org_uri
-            return org_uri
-            #is_timegate = False
-            #original_url = None
-            #if response.response_code.startswith('3'):
-            #return follow()
-            #else:
-            #return org_uri
+            return
 
-        # TEST-2 (the poor man's version)
-        # Is the response from URI-Q a 3XX?
-        #         YES => Go to FOLLOW
-        #         NO   => Go to TEST-3
-        #if response.response_code.startswith('3'):
-        #    return follow()
-
-        # TEST-2 (the rich man's version)
-        # Is the response from URI-Q a 3XX?
-        #         YES =>
-        #                 Is TG-FLAG=TRUE?
-        #                         YES => Go to FOLLOW
-        #                         NO   => CASE O1 302 O2. How does the
-        #                user agent handle this?
-        #         NO => Go to TEST-3
         if 299 < org_response.status_code < 400:
             # TODO: implement check for redirect loop, max_redirects=50?
             print "redirect.. " + org_uri
             return follow()
 
-        # TEST-3
-        # Is TG-FLAG=TRUE AND Is the response from URI-Q a 4XX or 5XX?
-        #         YES => CASE TimeGate or Memento error. How does the user
-        # agent handle this?
-        #         NO   => Go to TEST-4
-        #if is_timegate and (response.response_code.startswith('4') or
-        #                        response.response_code.startswith('5')):
-        # TimeGate or Memento error
-        #raise HttpError()
-
-        # TEST-4
-        # Does the response from URI-Q have a "timegate" link pointing at URI-G?
-        #    SET TG-FLAG=TRUE
-        #    SET URI-R=URI-Q
-        #    YES => SET URI-Q=URI-G
-        #    NO   => SET URI-Q=URI of the user agent's preferred TimeGate
-        #    Go to START
-
         if "Link" not in org_response.headers:
             print "no tg found.. " + org_uri
-            return org_uri
+            return
 
         link_header = self.parse_link_header(org_response.headers.get("Link"))
-        return self.get_uri_for_rel(link_header, "timegate")
+        tg_uri = self.get_uri_dt_for_rel(link_header, "timegate")
+        if tg_uri:
+            return tg_uri[0][0]
 
     @staticmethod
-    def get_uri_for_rel(links, rel):
+    def convert_to_datetime(dt):
+        """
+
+        :param dt:
+        :return:
+        """
+        if not dt:
+            return
+        return datetime.strptime(dt, HTTP_DT_FORMAT)
+
+    @staticmethod
+    def convert_to_http_datetime(dt):
+        """
+
+        :param dt:
+        :return:
+        """
+        if not dt:
+            return
+        return dt.strftime(HTTP_DT_FORMAT)
+
+    @staticmethod
+    def get_uri_dt_for_rel(links, rel_types):
+        """
+
+        :param links:
+        :param rel_types:
+        :return:
+        """
+        uris = {}
         for uri in links:
-            if rel in links.get(uri).get("rel"):
-                return uri
+            for rel in rel_types:
+                if rel in links.get(uri).get("rel"):
+                    uris[rel] = {"uri": uri, "datetime": links.get(uri).get("datetime")}
+        return uris
 
     @staticmethod
     def parse_link_header(link):
+        """
+
+        :param link:
+        :return:
+        """
 
         state = 'start'
         #header = link.strip()
@@ -276,6 +281,12 @@ class MementoClient(object):
 
         return links
 
-
-    def __head_request(self, uri, accept_datetime):
+    @staticmethod
+    def head_request(uri, accept_datetime):
         return requests.head(uri, headers={"Accept-Datetime": accept_datetime}, allow_redirects=False)
+
+
+if __name__ == "__main__":
+    mc = MementoClient()
+    dt = mc.convert_to_datetime("Sun, 01 Apr 2010 12:00:00 GMT")
+    res = mc.get_memento_uri("http://www.google.com", dt)
