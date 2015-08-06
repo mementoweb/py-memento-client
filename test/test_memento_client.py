@@ -1,44 +1,66 @@
 import pytest
+import csv
+import datetime
 from memento_client import MementoClient
 
-def test_get_memento_uri_default():
+def load_testdata(filename, keylist):
+
+    testdata = []
+
+    with open(filename, 'rb') as csvfile:
+
+        datareader = csv.DictReader(csvfile, delimiter=',', quotechar='"',
+            quoting=csv.QUOTE_ALL, skipinitialspace=True)
+
+        for row in datareader:
+            accept_datetime = datetime.datetime.strptime(row['Accept-Datetime'], "%a, %d %b %Y %H:%M:%S GMT")
+            datarow = []
+
+            datarow.append(row[keylist[0]])
+            datarow.append(accept_datetime)
+
+            for item in keylist[2:]:
+                datarow.append(row[item])
+
+            testdata.append( datarow )
+
+    return testdata
+
+
+memento_uri_default_testdata = load_testdata(
+    "test/memento_uri_default_testdata.csv",
+    [ "Input URI-R", "Accept-Datetime", "Expected URI-M" ] )
+
+specified_timegate_testdata = load_testdata(
+    "test/specified_timegate_testdata.csv",
+    [ "Input URI-R", "Accept-Datetime", "Input URI-G", "Expected URI-M" ] )
+
+native_timegate_testdata = load_testdata(
+    "test/native_timegate_testdata.csv",
+    [ "Input URI-R", "Accept-Datetime", "Expected URI-G" ] )
+
+@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
+def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
 
     mc = MementoClient()
 
-    input_uri_r = "http://www.cs.odu.edu"
-
-    input_datetime = "Mon, 24 Apr 2010 19:00:00 GMT"
-
     actual_uri_m = mc.get_memento_uri(input_uri_r, input_datetime)
-
-    expected_uri_m = "http://web.archive.org/web/20100502170247/http://www.cs.odu.edu/"
 
     assert expected_uri_m == actual_uri_m
 
+@pytest.mark.parametrize("input_uri_r,input_datetime,input_timegate,expected_uri_m", specified_timegate_testdata)
+def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_timegate, expected_uri_m):
 
-def test_get_memento_uri_specified_timegate():
-
-    mc = MementoClient(timegate_uri="http://www.webarchive.org/wayback/archive/")
-
-    input_uri_r = "http://www.lanl.gov"
-
-    input_datetime = "Wed, 19 Mar 2003 23:59:59"
-
-    expected_uri_m = "http://www.webarchive.org.uk:80/wayback/archive/20080409230230/http://www.lanl.gov/"
+    mc = MementoClient(timegate_uri=input_timegate)
 
     actual_uri_m = mc.get_memento_uri(input_uri_r, input_datetime)
 
     assert expected_uri_m == actual_uri_m
 
-def test_get_native_timegate_uri():
+@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_g", native_timegate_testdata)
+def test_get_native_timegate_uri(input_uri_r, input_datetime, expected_uri_g):
 
     mc = MementoClient()
-
-    input_uri_r = "http://metaarchive.org/metawiki/index.php/MetaWiki_Home"
-
-    input_datetime = "Thu, 11 Dec 2013 14:00:04"
-
-    expected_uri_g = "http://timetravel.mementoweb.org/mediawiki/timegate/http://metaarchive.org/metawiki/index.php/MetaWiki_Home"
 
     actual_uri_g = mc.get_native_timegate_uri(input_uri_r, input_datetime)
 
