@@ -247,7 +247,8 @@ Status code received: {4}
 
         return tg_uri
 
-    def determine_if_memento(self, uri):
+    @staticmethod
+    def determine_if_memento(uri):
         """
         Determines if the URI given is indeed a Memento.  The simple case is to
         look for a Memento-Datetime header in the request, but not all
