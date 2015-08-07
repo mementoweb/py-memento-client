@@ -7,6 +7,7 @@ import requests
 import sys
 import logging
 import os
+import re
 
 # Python 2.7 and 3.X support are different for urlparse
 if sys.version_info[0] == 3:
@@ -20,6 +21,10 @@ if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
 DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
+
+# non-compliant archive URI-M patterns
+WEBCITE_PAT = re.compile("http[s]*://www.webcitation.org/[0-9A-Za-z]*")
+WIKIPEDIA_PAT = re.compile("http[s]*://.*.wikipedia.org/w/index.php?.*oldid=[0-9]*")
 
 class MementoClientException(Exception):
 
@@ -108,7 +113,6 @@ class MementoClient(object):
         logging.debug("Using URI-G: " + timegate_uri)
 
         response = self.head_request(timegate_uri, accept_datetime=http_acc_dt, follow_redirects=False)
-
 
         logging.debug("request method:  " + str(response.request.method))
         logging.debug("request URI:  " + str(response.request.url))
@@ -215,6 +219,52 @@ Status code received: {4}
         logging.debug("Search for native URI-G yielded:  " + str(tg_uri))
 
         return tg_uri
+
+    def determine_if_memento(self, uri):
+        """
+        Determines if the URI given is indeed a Memento.  The simple case is to
+        look for a Memento-Datetime header in the request, but not all
+        archives are Memento-compliant yet.
+
+        :param uri: (str) an HTTP URI for testing
+        :return: (bool) True if a Memento, False otherwise
+        """
+
+        response = requests.head(uri, allow_redirects=False)
+
+        if 'Memento-Datetime' in response.headers:
+
+            if 'Link' in response.headers:
+
+                logging.debug(
+                    "Memento-Datetime found in headers for URI-R: {0}, so assuming it is a URI-M.".format(uri))
+            return True
+
+        # now the ugly kludges for sites that are not Memento-compliant
+
+        webcite_results = WEBCITE_PAT.findall(uri)
+
+        if len(webcite_results) > 0:
+            if webcite_results[0] == uri:
+                """
+                    Everything from webcitation should be a URI-M.
+
+                    There are some exceptions, but we do not know how to determine it.
+                """
+                return True
+
+        wikipedia_results = WIKIPEDIA_PAT.findall(uri)
+       
+        if len(wikipedia_results) > 0:
+            if wikipedia_results[0] == uri:
+                """
+                    Wikipedia oldid pages are URI-Ms in their own right.
+
+                    Once they install the Memento extension, we should remove this code.
+                """
+                return True
+
+        return False
 
     @staticmethod
     def convert_to_datetime(dt):

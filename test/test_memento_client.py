@@ -12,16 +12,19 @@ def load_testdata(filename, keylist):
         datareader = csv.DictReader(csvfile, delimiter=',', quotechar='"',
             quoting=csv.QUOTE_ALL, skipinitialspace=True)
 
+
         for row in datareader:
-            accept_datetime = datetime.datetime.strptime(row['Accept-Datetime'], "%a, %d %b %Y %H:%M:%S GMT")
+            acc_dt = row['Accept-Datetime'].strip() # workaround for extra space added sometimes?
+            accept_datetime = datetime.datetime.strptime(acc_dt, "%a, %d %b %Y %H:%M:%S GMT")
             datarow = []
 
             # oddly, sometimes the final " is left in the data
             datarow.append(row[keylist[0]].rstrip('"'))
             datarow.append(accept_datetime)
 
-            for item in keylist[2:]:
-                datarow.append(row[item])
+            if len(keylist) > 2:
+                for item in keylist[2:]:
+                    datarow.append(row[item])
 
             testdata.append( datarow )
 
@@ -40,29 +43,43 @@ native_timegate_testdata = load_testdata(
     "test/native_timegate_testdata.csv",
     [ "Input URI-R", "Accept-Datetime", "Expected URI-G" ] )
 
-@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
-def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
+mementos_only_testdata = load_testdata(
+    "test/mementos_only_testdata.csv",
+    [ "Input URI-M", "Accept-Datetime" ]
+    )
+
+#@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
+#def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
+#
+#    mc = MementoClient()
+#
+#    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
+#
+#    assert expected_uri_m == actual_uri_m
+#
+#@pytest.mark.parametrize("input_uri_r,input_datetime,input_timegate,expected_uri_m", specified_timegate_testdata)
+#def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_timegate, expected_uri_m):
+#
+#    mc = MementoClient(timegate_uri=input_timegate, check_native_timegate=False)
+#
+#    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
+#
+#    assert expected_uri_m == actual_uri_m
+#
+#@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_g", native_timegate_testdata)
+#def test_get_native_timegate_uri(input_uri_r, input_datetime, expected_uri_g):
+#
+#    mc = MementoClient(check_native_timegate=True)
+#
+#    actual_uri_g = mc.get_native_timegate_uri(input_uri_r, input_datetime)
+#
+#    assert expected_uri_g == actual_uri_g
+
+@pytest.mark.parametrize("input_uri_m, input_datetime", mementos_only_testdata)
+def test_determine_if_memento(input_uri_m, input_datetime):
 
     mc = MementoClient()
 
-    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
+    status = mc.determine_if_memento(input_uri_m)
 
-    assert expected_uri_m == actual_uri_m
-
-@pytest.mark.parametrize("input_uri_r,input_datetime,input_timegate,expected_uri_m", specified_timegate_testdata)
-def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_timegate, expected_uri_m):
-
-    mc = MementoClient(timegate_uri=input_timegate, check_native_timegate=False)
-
-    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
-
-    assert expected_uri_m == actual_uri_m
-
-@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_g", native_timegate_testdata)
-def test_get_native_timegate_uri(input_uri_r, input_datetime, expected_uri_g):
-
-    mc = MementoClient(check_native_timegate=True)
-
-    actual_uri_g = mc.get_native_timegate_uri(input_uri_r, input_datetime)
-
-    assert expected_uri_g == actual_uri_g
+    assert True == status
