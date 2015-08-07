@@ -44,7 +44,7 @@ def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
 
     mc = MementoClient()
 
-    actual_uri_m = mc.get_memento_uri(input_uri_r, input_datetime)
+    actual_uri_m = mc.get_memento_uri(input_uri_r, input_datetime).get("closest").get("uri")
 
     assert expected_uri_m == actual_uri_m
 
@@ -53,7 +53,7 @@ def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_t
 
     mc = MementoClient(timegate_uri=input_timegate)
 
-    actual_uri_m = mc.get_memento_uri(input_uri_r, input_datetime)
+    actual_uri_m = mc.get_memento_uri(input_uri_r, input_datetime).get("closest").get("uri")
 
     assert expected_uri_m == actual_uri_m
 
