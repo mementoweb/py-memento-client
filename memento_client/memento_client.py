@@ -4,6 +4,9 @@
 from datetime import datetime
 
 import requests
+from datetime import datetime
+import StringIO
+from lxml import etree
 import sys
 import logging
 import os
@@ -56,7 +59,8 @@ class MementoClient(object):
         self.timegate_uri = timegate_uri
         self.check_native_timegate = check_native_timegate
 
-    def get_archive_list(self, archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
+    @staticmethod
+    def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
         """
         This provides a list of archives and their corresponding timegates,
         so that one of them can be chosen as the preferred timegate.
@@ -68,10 +72,27 @@ class MementoClient(object):
         :return: (dict) A map of the archive id and their corresponding full name, timegate of the archive.
         """
 
+        archive_list = {}
         response = requests.get(archive_registry_uri)
-        reg_data = response.content
         # parse xml
-        archive_list = {"ia": {"name": "Internet Archive", "timegate_uri": "http://", "memento_status": "yes"}}
+        try:
+            data = etree.parse(StringIO.StringIO(response.content))
+        except:
+            return archive_list
+
+        for link in data.xpath("./link"):
+            id = link.attrib["id"]
+            name = link.attrib["longname"]
+            timegate_uri = link.find("timegate").attrib["uri"]
+            memento_status = link.find("archive").attrib["memento-status"]
+            mem_status = False
+            if memento_status == "yes":
+                mem_status = True
+
+            archive_list[id] = {"name": name,
+                                "timegate_uri": timegate_uri,
+                                "memento_status": mem_status,
+                                }
 
         return archive_list
 
@@ -439,4 +460,4 @@ Status code received: {4}
 if __name__ == "__main__":
     mc = MementoClient()
     dt = mc.convert_to_datetime("Sun, 01 Apr 2010 12:00:00 GMT")
-    res = mc.get_memento_uri("http://www.mementoweb.org/about/", dt)
+    res = mc.get_memento_uri("http://dbpedia.org/page/Berlin", dt)
