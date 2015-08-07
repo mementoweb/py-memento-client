@@ -64,7 +64,7 @@ class MementoClient(object):
 
         return archive_list
 
-    def get_memento_uri(self, original_uri, accept_datetime):
+    def get_memento_info(self, original_uri, accept_datetime):
         """
         Given an original uri and an accept datetime, this method queries the
         preferred timegate and returns the closest memento uri, along with
@@ -136,29 +136,26 @@ Status code received: {4}
         memento_info["closest"] = {}
         memento_info["closest"]["uri"] = uri_m
 
-#        #print response.headers
-#        link_header = response.headers.get("link")
-#        print(link_header)
-#        if not link_header:
-#            # TODO: create a "memento exception"
-#            raise Exception("The TimeGate (%s) did not return a Link header." % timegate_uri)
-#
-#        links = self.parse_link_header(link_header)
-#        print()
-#        print(links)
-#        mementos = self.get_uri_dt_for_rel(links, ["prev", "next", "first", "last"])
-#
-#        closest_memento = response.url
-#        print(closest_memento)
-#        memento_uris = {}
-#        memento_uris["closest"] = {}
-#        memento_uris["closest"]["uri"] = closest_memento
-#        memento_uris["closest"]["datetime"] = self.convert_to_datetime(response.headers.get("Memento-Datetime"))
-#        for mem in mementos:
-#            memento_uris[mem] = {
-#                "uri": mementos.get(mem).get("uri"),
-#                "datetime": self.convert_to_datetime(mementos.get(mem).get("datetime")[0])
-#            }
+        link_header = response.headers.get("link")
+
+        logging.debug("link header:  " + str(link_header))
+
+        if not link_header:
+            # TODO: create a "memento exception"
+            raise Exception("The TimeGate (%s) did not return a Link header." % timegate_uri)
+
+        links = self.parse_link_header(link_header)
+        logging.debug("link header:  " + str(links))
+
+        mementos = self.get_uri_dt_for_rel(links, ["prev", "next", "first", "last"])
+
+        memento_uris = {}
+
+        for mem in mementos:
+            memento_uris[mem] = {
+                "uri": mementos.get(mem).get("uri"),
+                "datetime": self.convert_to_datetime(mementos.get(mem).get("datetime")[0])
+            }
 
         return memento_info
 
