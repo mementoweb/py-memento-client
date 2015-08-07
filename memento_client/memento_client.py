@@ -25,11 +25,6 @@ DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/arc
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
 
-# non-compliant archive URI-M patterns
-WEBCITE_PAT = re.compile("http[s]*://www.webcitation.org/[0-9A-Za-z]*")
-WIKIPEDIA_PAT = re.compile("http[s]*://.*.wikipedia.org/w/index.php?.*oldid=[0-9]*")
-WIKIA_PAT = re.compile("http[s]*://.*.wikia.com/wiki/.*oldid=[0-9]*")
-
 class MementoClientException(Exception):
 
     def __init__(self, message, status_code, uri_r, uri_g, accept_datetime):
@@ -147,9 +142,9 @@ class MementoClient(object):
             tg_redirect_count += 1
             if tg_redirect_count == 50:
                 break
-            print("not a timegate: " + timegate_uri)
+            logging.debug("not a timegate: " + str(timegate_uri))
             timegate_uri = response.headers.get("Location")
-            print("new tg: " + timegate_uri)
+            logging.debug("new tg: " + str(timegate_uri))
             if not timegate_uri:
                 break
             response = self.head_request(timegate_uri, accept_datetime=http_acc_dt)
@@ -274,38 +269,23 @@ Status code received: {4}
 
         # now the ugly kludges for sites that are not Memento-compliant
 
-        webcite_results = WEBCITE_PAT.findall(uri)
+        # non-compliant archive patterns (until the site changes them)
+        WEBCITE_PAT = re.compile("http[s]*://www.webcitation.org/[0-9A-Za-z]*")
+        WIKIPEDIA_PAT = re.compile("http[s]*://.*.wikipedia.org/w/index.php?.*oldid=[0-9]*")
+        WIKIA_PAT = re.compile("http[s]*://.*.wikia.com/wiki/.*oldid=[0-9]*")
+        CANADA_PAT = re.compile("http[s]*://www.collectionscanada.gc.ca/webarchives/[0-9]*/http[s]*://.*")
+        CROATIA_PAT1 = re.compile("http://haw.nsk.hr/primjerak_publikacije/[0-9]*/.*")
+        CROATIA_PAT2 = re.compile("http://haw.nsk.hr/arhiva/[a-zA-Z0-9]*.*")
+        ESTONIA_PAT = re.compile("http://veebiarhiiv.digar.ee/[a-zA-Z]*/[0-9]*/http[s]*://.*")
 
-        if len(webcite_results) > 0:
-            if webcite_results[0] == uri:
-                """
-                    Everything from webcitation should be a URI-M.
+        for pattern in [ WEBCITE_PAT, WIKIPEDIA_PAT, WIKIA_PAT, CANADA_PAT,
+            CROATIA_PAT1, CROATIA_PAT2, ESTONIA_PAT ]:
 
-                    There are some exceptions, but we do not know how to determine it.
-                """
-                return True
+            results = pattern.findall(uri)
 
-        wikipedia_results = WIKIPEDIA_PAT.findall(uri)
-       
-        if len(wikipedia_results) > 0:
-            if wikipedia_results[0] == uri:
-                """
-                    Wikipedia oldid pages are URI-Ms in their own right.
-
-                    Once they install the Memento extension, we should remove this code.
-                """
-                return True
-
-        wikia_results = WIKIA_PAT.findall(uri)
-
-        if len(wikia_results) > 0:
-            if wikia_results[0] == uri:
-                """
-                    Just like Wikipedia, Wikia is a MediaWiki installation(s).
-
-                    Once they install the Memento extension, we should remove this code.
-                """
-                return True
+            if len(results) > 0:
+                if results[0] == uri:
+                    return True
 
         return False
 
@@ -495,8 +475,13 @@ Status code received: {4}
                 and "accept-datetime" in response.headers.get("Vary").lower() \
                 and original_uri and response.headers.get("Location"):
             return True
-        else:
-            return False
+
+        # archive.today's timegate does not return a Vary header
+        # TODO: talk to them about it
+        if response.headers.get("Location") and original_uri:
+            return True
+
+        return False
 
 
 if __name__ == "__main__":

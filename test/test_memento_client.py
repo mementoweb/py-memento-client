@@ -14,13 +14,15 @@ def load_testdata(filename, keylist):
 
 
         for row in datareader:
-            acc_dt = row['Accept-Datetime'].strip() # workaround for extra space added sometimes?
-            accept_datetime = datetime.datetime.strptime(acc_dt, "%a, %d %b %Y %H:%M:%S GMT")
-            datarow = []
 
+            datarow = []
             # oddly, sometimes the final " is left in the data
             datarow.append(row[keylist[0]].rstrip('"'))
-            datarow.append(accept_datetime)
+
+            if 'Accept-Datetime' in row:
+                acc_dt = row['Accept-Datetime'].strip() # workaround for extra space added sometimes?
+                accept_datetime = datetime.datetime.strptime(acc_dt, "%a, %d %b %Y %H:%M:%S GMT")
+                datarow.append(accept_datetime)
 
             if len(keylist) > 2:
                 for item in keylist[2:]:
@@ -45,7 +47,7 @@ native_timegate_testdata = load_testdata(
 
 mementos_only_testdata = load_testdata(
     "test/mementos_only_testdata.csv",
-    [ "Input URI-M", "Accept-Datetime" ]
+    [ "Input URI-M" ]
     )
 
 @pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
@@ -75,8 +77,11 @@ def test_get_native_timegate_uri(input_uri_r, input_datetime, expected_uri_g):
 
     assert expected_uri_g == actual_uri_g
 
-@pytest.mark.parametrize("input_uri_m, input_datetime", mementos_only_testdata)
-def test_determine_if_memento(input_uri_m, input_datetime):
+@pytest.mark.parametrize("input_uri_m", mementos_only_testdata)
+def test_determine_if_memento(input_uri_m):
+
+    # TODO: pytest did not seem to split this into arguments
+    input_uri_m = input_uri_m[0]
 
     mc = MementoClient()
 

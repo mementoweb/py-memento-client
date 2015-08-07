@@ -41,7 +41,7 @@ setup(
     license='LICENSE.txt',
     author=memento_client.__author__,
     tests_require=['pytest'],
-    install_requires=[],
+    install_requires=[ 'requests', 'lxml' ],
     cmdclass={'test': PyTest},
     author_email=memento_client.__author_email__,
     description='Official Python library for using the Memento Protocol',
