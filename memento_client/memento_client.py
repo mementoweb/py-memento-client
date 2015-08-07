@@ -134,7 +134,7 @@ class MementoClient(object):
 
         logging.debug("Using URI-G: " + timegate_uri)
 
-        response = self.head_request(timegate_uri, accept_datetime=http_acc_dt, follow_redirects=False)
+        response = self.head_request(timegate_uri, accept_datetime=http_acc_dt)
 
         logging.debug("request method:  " + str(response.request.method))
         logging.debug("request URI:  " + str(response.request.url))
@@ -142,6 +142,17 @@ class MementoClient(object):
         logging.debug("response status code: " + str(response.status_code))
         logging.debug("response headers:  " + str(response.headers))
 
+        tg_redirect_count = 0
+        while not self.determine_if_timegate(timegate_uri, response=response):
+            tg_redirect_count += 1
+            if tg_redirect_count == 50:
+                break
+            print("not a timegate: " + timegate_uri)
+            timegate_uri = response.headers.get("Location")
+            print("new tg: " + timegate_uri)
+            if not timegate_uri:
+                break
+            response = self.head_request(timegate_uri, accept_datetime=http_acc_dt)
 
         if (response.status_code != 302 and response.status_code != 200 ):
             raise MementoClientException("""
@@ -174,7 +185,6 @@ Status code received: {4}
         logging.debug("link header:  " + str(link_header))
 
         if not link_header:
-            # TODO: create a "memento exception"
             raise Exception("The TimeGate (%s) did not return a Link header." % timegate_uri)
 
         links = self.parse_link_header(link_header)
@@ -210,7 +220,7 @@ Status code received: {4}
             logging.debug("Following to new URI of " + org_response.headers.get("Location"))
             return self.get_native_timegate_uri(org_response.headers.get('Location'), accept_datetime)
 
-        if org_response.headers.get("Vary") and 'accept-datetime' in org_response.headers.get('Vary'):
+        if org_response.headers.get("Vary") and 'accept-datetime' in org_response.headers.get('Vary').lower():
             logging.debug("Vary header with Accept-Datetime found for URI-R: " + original_uri)
             return
 
@@ -332,6 +342,8 @@ Status code received: {4}
         :param rel_types: (list) a list of rel types for which the uris should be found.
         :return: (dict) {rel: {"uri": "", "datetime": }}
         """
+        if not links or not rel_types:
+            return
         uris = {}
         for uri in links:
             for rel in rel_types:
@@ -349,9 +361,9 @@ Status code received: {4}
         :return: (dict) {"uri": {"rel": ["", ""], "datetime": [""]}...}
         """
 
+        if not link:
+            return
         state = 'start'
-        #header = link.strip()
-        #data = [d for d in header]
         data = list(link.strip())
         links = {}
         d_count = 0
@@ -468,8 +480,26 @@ Status code received: {4}
         """
         return requests.head(uri, headers={"Accept-Datetime": accept_datetime}, allow_redirects=follow_redirects)
 
+    @staticmethod
+    def determine_if_timegate(uri, accept_datetime=None, response=None):
+        if not accept_datetime:
+            accept_datetime = MementoClient.convert_to_http_datetime(datetime.now())
+
+        if not response:
+            response = MementoClient.head_request(uri, accept_datetime=accept_datetime)
+
+        links = MementoClient.parse_link_header(response.headers.get("Link"))
+        original_uri = MementoClient.get_uri_dt_for_rel(links, ["original"])
+
+        if response.headers.get("Vary") \
+                and "accept-datetime" in response.headers.get("Vary").lower() \
+                and original_uri and response.headers.get("Location"):
+            return True
+        else:
+            return False
+
 
 if __name__ == "__main__":
     mc = MementoClient()
     dt = mc.convert_to_datetime("Sun, 01 Apr 2010 12:00:00 GMT")
-    res = mc.get_memento_uri("http://dbpedia.org/page/Berlin", dt)
+    res = mc.get_memento_info("http://dbpedia.org/page/Berlin", dt)
