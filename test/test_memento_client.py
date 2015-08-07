@@ -61,7 +61,7 @@ def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_t
 @pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_g", native_timegate_testdata)
 def test_get_native_timegate_uri(input_uri_r, input_datetime, expected_uri_g):
 
-    mc = MementoClient()
+    mc = MementoClient(check_native_timegate=True)
 
     actual_uri_g = mc.get_native_timegate_uri(input_uri_r, input_datetime)
 

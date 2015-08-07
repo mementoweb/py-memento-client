@@ -1,22 +1,21 @@
 """
 """
 
-# Python 2.7 and 3.X support
-from __future__ import print_function
 from datetime import datetime
 
 import requests
 import sys
 import logging
+import os
 
+# Python 2.7 and 3.X support are different for urlparse
 if sys.version_info[0] == 3:
     from urllib.parse import urlparse
 else:
     from urlparse import urlparse
 
-__author__ = 'Harihar Shankar'
-
-logging.basicConfig(level=logging.DEBUG)
+if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
+    logging.basicConfig(level=logging.DEBUG)
 
 DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
@@ -171,35 +170,41 @@ Status code received: {4}
 
         org_response = self.head_request(original_uri, accept_datetime=self.convert_to_http_datetime(accept_datetime))
 
+        logging.debug("Request headers sent to search for URI-G:  " + str(org_response.request.headers))
+
         def follow():
-            print("following.. " + org_response.headers.get("Location"))
+            logging.debug("Following to new URI of " + org_response.headers.get("Location"))
             return self.get_native_timegate_uri(org_response.headers.get('Location'), accept_datetime)
 
         if org_response.headers.get("Vary") and 'accept-datetime' in org_response.headers.get('Vary'):
-            print("vary acc-dt found for " + original_uri)
+            logging.debug("Vary header with Accept-Datetime found for URI-R: " + original_uri)
             return
 
         if 'Memento-Datetime' in org_response.headers:
-            print("mem-dt found for " + original_uri)
+            logging.debug("Memento-Datetime found in headers for URI-R: {0}, so assuming it is a URI-M.".format(original_uri))
             return
 
         if 299 < org_response.status_code < 400:
             # TODO: implement check for redirect loop, max_redirects=50?
-            print("redirect.. " + original_uri)
+            logging.debug("Been redirected from URI-R: " + original_uri)
             return follow()
 
         if "Link" not in org_response.headers:
-            print("no tg found.. " + original_uri)
+            logging.debug("No URI-G found for URI-R: " + original_uri)
             return
 
+        logging.debug("Received raw Link header:  " + str(org_response.headers.get("Link")))
+
         link_header = self.parse_link_header(org_response.headers.get("Link"))
-        print(link_header)
+        logging.debug("Received Link header:  " + str(link_header))
         tg = self.get_uri_dt_for_rel(link_header, ["timegate"])
 
         tg_uri = None
 
         if "timegate" in tg:
             tg_uri = tg["timegate"].get("uri")
+
+        logging.debug("Search for native URI-G yielded:  " + str(tg_uri))
 
         return tg_uri
 
