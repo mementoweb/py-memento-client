@@ -1,19 +1,38 @@
 """
 """
 
-__author__ = 'Harihar Shankar'
-
+from datetime import datetime
 
 import requests
 from datetime import datetime
 import StringIO
 from lxml import etree
+import sys
+import logging
+import os
 
+# Python 2.7 and 3.X support are different for urlparse
+if sys.version_info[0] == 3:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
+
+if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
+    logging.basicConfig(level=logging.DEBUG)
 
 DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
 
+class MementoClientException(Exception):
+
+    def __init__(self, message, status_code, uri_r, uri_g, accept_datetime):
+        super(MementoClientException, self).__init__(message)
+
+        self.status_code = status_code
+        self.uri_r = uri_r
+        self.uri_g = uri_g
+        self.accept_datetime = accept_datetime
 
 class MementoClient(object):
 
@@ -72,7 +91,7 @@ class MementoClient(object):
 
         return archive_list
 
-    def get_memento_uri(self, original_uri, accept_datetime):
+    def get_memento_info(self, original_uri, accept_datetime):
         """
         Given an original uri and an accept datetime, this method queries the
         preferred timegate and returns the closest memento uri, along with
@@ -82,6 +101,9 @@ class MementoClient(object):
         :param accept_datetime: (datetime) The datetime object of the accept datetime.
         :return: (dict) A map of uri and datetime for the closest/prev/next/first/last mementos.
         """
+
+        logging.debug("getting URI-R {0} at accept-datetime {1}!!!".format(original_uri, str(accept_datetime)))
+        logging.debug("Starting with URI-G stem: " + self.timegate_uri)
 
         if not original_uri or not accept_datetime:
             # TODO: error handling
@@ -100,37 +122,70 @@ class MementoClient(object):
         native_tg = None
         if self.check_native_timegate:
             native_tg = self.get_native_timegate_uri(original_uri, accept_datetime=accept_datetime)
+            logging.debug("Found native URI-G:  " + str(native_tg))
 
         timegate_uri = native_tg if native_tg else self.timegate_uri + original_uri
-        print("tg: " + timegate_uri)
 
-        response = self.head_request(timegate_uri, accept_datetime=http_acc_dt, follow_redirects=True)
+        logging.debug("Using URI-G: " + timegate_uri)
 
-        #print response.headers
+        response = self.head_request(timegate_uri, accept_datetime=http_acc_dt, follow_redirects=False)
+
+
+        logging.debug("request method:  " + str(response.request.method))
+        logging.debug("request URI:  " + str(response.request.url))
+        logging.debug("request headers: " + str(response.request.headers))
+        logging.debug("response status code: " + str(response.status_code))
+        logging.debug("response headers:  " + str(response.headers))
+
+
+        if (response.status_code != 302 and response.status_code != 200 ):
+            raise MementoClientException("""
+TimeGate did not respond with a 302 redirect or 200 OK HTTP status code
+URI-R:  {0}
+URI-G stem:  {1}
+URI-G:  {2}
+Accept-Datetime:  {3}
+Status code received: {4}
+""".format(original_uri, self.timegate_uri, timegate_uri, str(http_acc_dt), response.status_code),
+    response.status_code, original_uri, timegate_uri, accept_datetime)
+
+        uri_m = response.headers.get("location")
+
+        logging.debug("received URI-M:  " + uri_m)
+
+        # sometimes we get relative URI-Ms, which have no scheme
+        if not urlparse(uri_m).scheme:
+            uri_m = urlparse(timegate_uri).scheme + "://" + urlparse(timegate_uri).netloc + uri_m
+
+        logging.debug("location:  " + response.headers.get("location"))
+        logging.debug("using URI-M:  " + uri_m)
+
+        memento_info = {}
+        memento_info["closest"] = {}
+        memento_info["closest"]["uri"] = uri_m
+
         link_header = response.headers.get("link")
-        print link_header
+
+        logging.debug("link header:  " + str(link_header))
+
         if not link_header:
             # TODO: create a "memento exception"
             raise Exception("The TimeGate (%s) did not return a Link header." % timegate_uri)
 
         links = self.parse_link_header(link_header)
-        print
-        print links
+        logging.debug("link header:  " + str(links))
+
         mementos = self.get_uri_dt_for_rel(links, ["prev", "next", "first", "last"])
 
-        closest_memento = response.url
-        print closest_memento
         memento_uris = {}
-        memento_uris["closest"] = {}
-        memento_uris["closest"]["uri"] = closest_memento
-        memento_uris["closest"]["datetime"] = self.convert_to_datetime(response.headers.get("Memento-Datetime"))
+
         for mem in mementos:
             memento_uris[mem] = {
                 "uri": mementos.get(mem).get("uri"),
                 "datetime": self.convert_to_datetime(mementos.get(mem).get("datetime")[0])
             }
 
-        return memento_uris
+        return memento_info
 
     def get_native_timegate_uri(self, original_uri, accept_datetime):
         """
@@ -144,31 +199,43 @@ class MementoClient(object):
 
         org_response = self.head_request(original_uri, accept_datetime=self.convert_to_http_datetime(accept_datetime))
 
+        logging.debug("Request headers sent to search for URI-G:  " + str(org_response.request.headers))
+
         def follow():
-            print "following.. " + org_response.headers.get("Location")
+            logging.debug("Following to new URI of " + org_response.headers.get("Location"))
             return self.get_native_timegate_uri(org_response.headers.get('Location'), accept_datetime)
 
         if org_response.headers.get("Vary") and 'accept-datetime' in org_response.headers.get('Vary'):
-            print "vary acc-dt found for " + original_uri
+            logging.debug("Vary header with Accept-Datetime found for URI-R: " + original_uri)
             return
 
         if 'Memento-Datetime' in org_response.headers:
-            print "mem-dt found for " + original_uri
+            logging.debug("Memento-Datetime found in headers for URI-R: {0}, so assuming it is a URI-M.".format(original_uri))
             return
 
         if 299 < org_response.status_code < 400:
             # TODO: implement check for redirect loop, max_redirects=50?
-            print "redirect.. " + original_uri
+            logging.debug("Been redirected from URI-R: " + original_uri)
             return follow()
 
         if "Link" not in org_response.headers:
-            print "no tg found.. " + original_uri
+            logging.debug("No URI-G found for URI-R: " + original_uri)
             return
 
+        logging.debug("Received raw Link header:  " + str(org_response.headers.get("Link")))
+
         link_header = self.parse_link_header(org_response.headers.get("Link"))
-        print(link_header)
+        logging.debug("Received Link header:  " + str(link_header))
         tg = self.get_uri_dt_for_rel(link_header, ["timegate"])
-        return tg["timegate"].get("uri")
+
+        tg_uri = None
+
+        if "timegate" in tg:
+            tg_uri = tg["timegate"].get("uri")
+
+        logging.debug("Search for native URI-G yielded:  " + str(tg_uri))
+
+        return tg_uri
 
     @staticmethod
     def convert_to_datetime(dt):
