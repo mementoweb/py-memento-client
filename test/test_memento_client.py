@@ -7,7 +7,7 @@ def load_testdata(filename, keylist):
 
     testdata = []
 
-    with open(filename, 'rb') as csvfile:
+    with open(filename, 'rt') as csvfile:
 
         datareader = csv.DictReader(csvfile, delimiter=',', quotechar='"',
             quoting=csv.QUOTE_ALL, skipinitialspace=True)

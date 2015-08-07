@@ -1,6 +1,9 @@
 """
 """
 
+# Python 2.7 and 3.X support
+from __future__ import print_function
+
 __author__ = 'Harihar Shankar'
 
 
@@ -88,18 +91,18 @@ class MementoClient(object):
 
         #print response.headers
         link_header = response.headers.get("link")
-        print link_header
+        print(link_header)
         if not link_header:
             # TODO: create a "memento exception"
             raise Exception("The TimeGate (%s) did not return a Link header." % timegate_uri)
 
         links = self.parse_link_header(link_header)
-        print
-        print links
+        print()
+        print(links)
         mementos = self.get_uri_dt_for_rel(links, ["prev", "next", "first", "last"])
 
         closest_memento = response.url
-        print closest_memento
+        print(closest_memento)
         memento_uris = {}
         memento_uris["closest"] = {}
         memento_uris["closest"]["uri"] = closest_memento
@@ -125,24 +128,24 @@ class MementoClient(object):
         org_response = self.head_request(original_uri, accept_datetime=self.convert_to_http_datetime(accept_datetime))
 
         def follow():
-            print "following.. " + org_response.headers.get("Location")
+            print("following.. " + org_response.headers.get("Location"))
             return self.get_native_timegate_uri(org_response.headers.get('Location'), accept_datetime)
 
         if org_response.headers.get("Vary") and 'accept-datetime' in org_response.headers.get('Vary'):
-            print "vary acc-dt found for " + original_uri
+            print("vary acc-dt found for " + original_uri)
             return
 
         if 'Memento-Datetime' in org_response.headers:
-            print "mem-dt found for " + original_uri
+            print("mem-dt found for " + original_uri)
             return
 
         if 299 < org_response.status_code < 400:
             # TODO: implement check for redirect loop, max_redirects=50?
-            print "redirect.. " + original_uri
+            print("redirect.. " + original_uri)
             return follow()
 
         if "Link" not in org_response.headers:
-            print "no tg found.. " + original_uri
+            print("no tg found.. " + original_uri)
             return
 
         link_header = self.parse_link_header(org_response.headers.get("Link"))
