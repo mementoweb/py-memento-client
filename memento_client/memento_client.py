@@ -22,7 +22,14 @@ DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
 
 class MementoClientException(Exception):
-    pass
+
+    def __init__(self, message, status_code, uri_r, uri_g, accept_datetime):
+        super(MementoClientException, self).__init__(message)
+
+        self.status_code = status_code
+        self.uri_r = uri_r
+        self.uri_g = uri_g
+        self.accept_datetime = accept_datetime
 
 class MementoClient(object):
 
@@ -118,7 +125,8 @@ URI-G stem:  {1}
 URI-G:  {2}
 Accept-Datetime:  {3}
 Status code received: {4}
-""".format(original_uri, self.timegate_uri, timegate_uri, str(http_acc_dt), response.status_code))
+""".format(original_uri, self.timegate_uri, timegate_uri, str(http_acc_dt), response.status_code),
+    response.status_code, original_uri, timegate_uri, accept_datetime)
 
         uri_m = response.headers.get("location")
 
