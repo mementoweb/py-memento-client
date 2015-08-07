@@ -28,6 +28,7 @@ HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
 # non-compliant archive URI-M patterns
 WEBCITE_PAT = re.compile("http[s]*://www.webcitation.org/[0-9A-Za-z]*")
 WIKIPEDIA_PAT = re.compile("http[s]*://.*.wikipedia.org/w/index.php?.*oldid=[0-9]*")
+WIKIA_PAT = re.compile("http[s]*://.*.wikia.com/wiki/.*oldid=[0-9]*")
 
 class MementoClientException(Exception):
 
@@ -280,6 +281,17 @@ Status code received: {4}
             if wikipedia_results[0] == uri:
                 """
                     Wikipedia oldid pages are URI-Ms in their own right.
+
+                    Once they install the Memento extension, we should remove this code.
+                """
+                return True
+
+        wikia_results = WIKIA_PAT.findall(uri)
+
+        if len(wikia_results) > 0:
+            if wikia_results[0] == uri:
+                """
+                    Just like Wikipedia, Wikia is a MediaWiki installation(s).
 
                     Once they install the Memento extension, we should remove this code.
                 """

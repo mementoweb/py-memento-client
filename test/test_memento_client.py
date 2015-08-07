@@ -48,32 +48,32 @@ mementos_only_testdata = load_testdata(
     [ "Input URI-M", "Accept-Datetime" ]
     )
 
-#@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
-#def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
-#
-#    mc = MementoClient()
-#
-#    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
-#
-#    assert expected_uri_m == actual_uri_m
-#
-#@pytest.mark.parametrize("input_uri_r,input_datetime,input_timegate,expected_uri_m", specified_timegate_testdata)
-#def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_timegate, expected_uri_m):
-#
-#    mc = MementoClient(timegate_uri=input_timegate, check_native_timegate=False)
-#
-#    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
-#
-#    assert expected_uri_m == actual_uri_m
-#
-#@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_g", native_timegate_testdata)
-#def test_get_native_timegate_uri(input_uri_r, input_datetime, expected_uri_g):
-#
-#    mc = MementoClient(check_native_timegate=True)
-#
-#    actual_uri_g = mc.get_native_timegate_uri(input_uri_r, input_datetime)
-#
-#    assert expected_uri_g == actual_uri_g
+@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
+def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
+
+    mc = MementoClient()
+
+    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
+
+    assert expected_uri_m == actual_uri_m
+
+@pytest.mark.parametrize("input_uri_r,input_datetime,input_timegate,expected_uri_m", specified_timegate_testdata)
+def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_timegate, expected_uri_m):
+
+    mc = MementoClient(timegate_uri=input_timegate, check_native_timegate=False)
+
+    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
+
+    assert expected_uri_m == actual_uri_m
+
+@pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_g", native_timegate_testdata)
+def test_get_native_timegate_uri(input_uri_r, input_datetime, expected_uri_g):
+
+    mc = MementoClient(check_native_timegate=True)
+
+    actual_uri_g = mc.get_native_timegate_uri(input_uri_r, input_datetime)
+
+    assert expected_uri_g == actual_uri_g
 
 @pytest.mark.parametrize("input_uri_m, input_datetime", mementos_only_testdata)
 def test_determine_if_memento(input_uri_m, input_datetime):
