@@ -5,7 +5,6 @@ A Memento Client library.
 
 import requests
 from datetime import datetime
-import StringIO
 from lxml import etree
 import sys
 import logging
@@ -15,7 +14,9 @@ import re
 # Python 2.7 and 3.X support are different for urlparse
 if sys.version_info[0] == 3:
     from urllib.parse import urlparse
+    from io import StringIO
 else:
+    import StringIO
     from urlparse import urlparse
 
 if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
