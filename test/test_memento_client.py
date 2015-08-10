@@ -50,12 +50,21 @@ mementos_only_testdata = load_testdata(
     [ "Input URI-M" ]
     )
 
+non_compliant_mementos_testdata = load_testdata(
+    "test/non_compliant_mementos_testdata.csv",
+    [ "Input URI-M" ]
+    )
+
+mementos_not_found_testdata = load_testdata(
+    "test/mementos_not_in_archive_testdata.csv",
+    [ "Input URI-R", "Accept-Datetime", "Input URI-G" ] )
+
 @pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
 def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
 
     mc = MementoClient()
 
-    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
+    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("mementos").get("closest").get("uri")[0]
 
     assert expected_uri_m == actual_uri_m
 
@@ -64,7 +73,7 @@ def test_get_memento_uri_specified_timegate(input_uri_r, input_datetime, input_t
 
     mc = MementoClient(timegate_uri=input_timegate, check_native_timegate=False)
 
-    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("closest").get("uri")
+    actual_uri_m = mc.get_memento_info(input_uri_r, input_datetime).get("mementos").get("closest").get("uri")[0]
 
     assert expected_uri_m == actual_uri_m
 
@@ -86,3 +95,51 @@ def test_determine_if_memento(input_uri_m):
     status = MementoClient.is_memento(input_uri_m)
 
     assert True == status
+
+@pytest.mark.parametrize("input_uri_m", non_compliant_mementos_testdata)
+def test_get_memento_data_non_compliant(input_uri_m):
+
+    # TODO: pytest did not seem to split this into arguments
+    input_uri_m = input_uri_m[0]
+
+    mc = MementoClient()
+    
+    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    original_uri = mc.get_memento_info(input_uri_m, accept_datetime).get("original_uri")
+
+    assert input_uri_m == original_uri
+
+@pytest.mark.parametrize("input_uri_r,input_datetime,input_uri_g", mementos_not_found_testdata)
+def test_mementos_not_in_archive_uri(input_uri_r, input_datetime, input_uri_g):
+
+    mc = MementoClient(timegate_uri=input_uri_g)
+
+    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
+
+    assert input_uri_r == original_uri
+
+def test_bad_timegate():
+
+    input_uri_r = "http://www.cnn.com"
+    bad_uri_g = "http://www.example.com"
+    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    mc = MementoClient(timegate_uri=bad_uri_g)
+
+    original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
+
+    assert input_uri_r == original_uri
+
+def good_url_slash_at_end():
+
+    input_uri_r = "http://www.cnn.com/"
+    
+    mc = MementoClient()
+    dt = datetime.datetime.strptime("Tue, 11 Sep 2001 08:45:45 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+    
+    uri_m = mc.get_memento_info(input_uri_r, dt).get("mementos").get("closest").get("uri")[0]
+
+    assert uri_m == 'http://webarchive.loc.gov/all/20010911181528/http://www2.cnn.com/'
