@@ -83,6 +83,6 @@ def test_determine_if_memento(input_uri_m):
     # TODO: pytest did not seem to split this into arguments
     input_uri_m = input_uri_m[0]
 
-    status = MementoClient.determine_if_memento(input_uri_m)
+    status = MementoClient.is_memento(input_uri_m)
 
     assert True == status
