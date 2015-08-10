@@ -45,7 +45,7 @@ uri = "http://lanl.gov"
 
 mc = MementoClient()
 
-memento_uri = mc.get_memento_info(uri, dt).get("closest").get("uri")
+memento_uri = mc.get_memento_info(uri, dt).get("mementos").get("closest").get("uri")[0]
 ```
 
 One can specify a specific TimeGate like so.
@@ -61,5 +61,5 @@ timegate = "http://timetravel.mementoweb.org/webcite/timegate/"
 
 mc = MementoClient(timegate_uri=timegate, check_native_timegate=False)
 
-memento_uri = mc.get_memento_info(uri, dt).get("closest").get("uri")
+memento_uri = mc.get_memento_info(uri, dt).get("mementos").get("closest").get("uri")[0]
 ```
