@@ -1,0 +1,11 @@
+language: python
+    - "2.7"
+    - "3.4"
+
+install: 
+    - "pip install ."
+    - "pip install requests"
+    - "pip install lxml"
+
+script:
+    - python setup.py test
