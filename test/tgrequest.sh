@@ -4,4 +4,4 @@ URIR=$1
 URIG=$2
 dt=$3
 
-curl -I -H "Accept-Datetime: $dt" ${URIG}${URIR}
+curl -v -I -L -H "Accept-Datetime: $dt" ${URIG}${URIR}
