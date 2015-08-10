@@ -2,12 +2,15 @@ language: python
 python:
     - "2.7"
     - "3.4"
+env:
+    - DEBUG_MEMENTO_CLIENT=1
 install: 
     - "pip install requests"
     - "pip install lxml"
     - "pip install ."
 script:
     - python setup.py test
+    - python setup.py dist
 branches:
     only:
         - master
