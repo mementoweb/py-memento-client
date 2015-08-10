@@ -284,28 +284,14 @@ class MementoClient(object):
 
             if 'Link' in response.headers:
 
-                logging.debug(
-                    "Memento-Datetime found in headers for URI-R: {0}, so assuming it is a URI-M.".format(uri))
-            return True
+                links = MementoClient.parse_link_header(response.headers.get("Link"))
 
-        # now the ugly kludges for sites that are not Memento-compliant
+                rels = MementoClient.get_uri_dt_for_rel(links, ["original"])
 
-        # non-compliant archive patterns (until the site changes them)
-        WEBCITE_PAT = re.compile("http[s]*://www.webcitation.org/[0-9A-Za-z]*")
-        WIKIPEDIA_PAT = re.compile("http[s]*://.*.wikipedia.org/w/index.php?.*oldid=[0-9]*")
-        WIKIA_PAT = re.compile("http[s]*://.*.wikia.com/wiki/.*oldid=[0-9]*")
-        CANADA_PAT = re.compile("http[s]*://www.collectionscanada.gc.ca/webarchives/[0-9]*/http[s]*://.*")
-        CROATIA_PAT1 = re.compile("http://haw.nsk.hr/primjerak_publikacije/[0-9]*/.*")
-        CROATIA_PAT2 = re.compile("http://haw.nsk.hr/arhiva/[a-zA-Z0-9]*.*")
-        ESTONIA_PAT = re.compile("http://veebiarhiiv.digar.ee/[a-zA-Z]*/[0-9]*/http[s]*://.*")
+                if 'original' in rels:
+                    logging.debug(
+                        "Memento-Datetime found in headers for URI-R: {0}, so assuming it is a URI-M.".format(uri))
 
-        for pattern in [ WEBCITE_PAT, WIKIPEDIA_PAT, WIKIA_PAT, CANADA_PAT,
-            CROATIA_PAT1, CROATIA_PAT2, ESTONIA_PAT ]:
-
-            results = pattern.findall(uri)
-
-            if len(results) > 0:
-                if results[0] == uri:
                     return True
 
         return False
