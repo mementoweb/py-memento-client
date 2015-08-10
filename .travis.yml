@@ -3,9 +3,9 @@ language: python
     - "3.4"
 
 install: 
-    - "pip install ."
     - "pip install requests"
     - "pip install lxml"
+    - "pip install ."
 
 script:
     - python setup.py test
