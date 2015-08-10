@@ -244,17 +244,16 @@ class MementoClient(object):
             response = MementoClient.request_head(uri, accept_datetime=accept_datetime)
 
         if response.status_code != 302 and response.status_code != 200:
-            #TODO: make the arguments required for mementoclientexception optional.
-            raise
-            #raise MementoClientException("""
-        #TimeGate did not respond with a 302 redirect or 200 OK HTTP status code
-        #URI-R:  {0}
-        #URI-G stem:  {1}
-        #URI-G:  {2}
-        #Accept-Datetime:  {3}
-        #Status code received: {4}
-        #""".format(original_uri, self.timegate_uri, timegate_uri, str(http_acc_dt), response.status_code),
-        #                                         response.status_code, original_uri, timegate_uri, accept_datetime)
+            raise MementoClientException("""
+TimeGate did not respond with a 302 redirect or 200 OK HTTP status code
+URI:  {0}
+Accept-Datetime:  {1}
+Status code received: {2}
+        """.format(uri, accept_datetime, str(response.status_code)),
+                                         {"status_code": response.status_code,
+                                          "timegate_uri": uri,
+                                          "accept_datetime": accept_datetime})
+
         links = MementoClient.parse_link_header(response.headers.get("Link"))
         original_uri = MementoClient.get_uri_dt_for_rel(links, ["original"])
 
@@ -544,13 +543,9 @@ class MementoClient(object):
 
 class MementoClientException(Exception):
 
-    def __init__(self, message, status_code, uri_r, uri_g, accept_datetime):
+    def __init__(self, message, data):
         super(MementoClientException, self).__init__(message)
-
-        self.status_code = status_code
-        self.uri_r = uri_r
-        self.uri_g = uri_g
-        self.accept_datetime = accept_datetime
+        self.data = data
 
 
 if __name__ == "__main__":
