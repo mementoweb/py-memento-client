@@ -94,7 +94,7 @@ class MementoClient(object):
             raise Exception("Only HTTP URIs are supported, URI %s unrecognized." % request_uri)
 
         if type(accept_datetime) != datetime:
-            raise KeyError("Expecting accept_datetime to be of type datetime.")
+            raise TypeError("Expecting accept_datetime to be of type datetime.")
 
         http_acc_dt = self.convert_to_http_datetime(accept_datetime)
 
