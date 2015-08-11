@@ -1,6 +1,7 @@
 import pytest
 import csv
 import datetime
+import sys
 from memento_client import MementoClient
 
 def load_testdata(filename, keylist):
