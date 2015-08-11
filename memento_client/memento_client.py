@@ -10,7 +10,8 @@ from lxml import etree
 import sys
 import logging
 import os
-import re
+import grequests
+
 
 # Python 2.7 and 3.X support are different for urlparse
 if sys.version_info[0] == 3:
@@ -23,21 +24,30 @@ if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
 
 DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
+DEFAULT_TIMEMAP_JSON_BASE_URI = "http://labs.mementoweb.org/timemap/json/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
+
+
+class MementoClientException(Exception):
+
+    def __init__(self, message, data):
+        super(MementoClientException, self).__init__(message)
+        self.data = data
 
 
 class MementoClient(object):
 
     def __init__(self,
                  timegate_uri=DEFAULT_TIMEGATE_BASE_URI,
-                 check_native_timegate=True):
+                 check_native_timegate=True,
+                 timemap_uri=DEFAULT_TIMEMAP_JSON_BASE_URI):
         """
         A Memento Client that makes it straightforward to access the Web of the past
         as it is to access the current Web.
         Basic usage:
-        >>> import MementoClient, datetime
+        >>> mc = MementoClient()
         >>> dt = mc.convert_to_datetime("Sun, 01 Apr 2010 12:00:00 GMT")
-        >>> mc = MementoClient.get_memento_info("http://www.bbc.com/", dt)
+        >>> mc = mc.get_memento_info("http://www.bbc.com/", dt)
         >>> print(mc)
         {'mementos': {'closest': {'datetime': datetime.datetime(2010, 5, 23, 10, 19, 6),
    'http_status_code': 200,
@@ -60,10 +70,14 @@ class MementoClient(object):
         timegate_uri will be used.
 
         :param timegate_uri: (str) A valid HTTP base uri for a timegate. Must start with http(s):// and end with a /.
+        :param timemap_uri: (str) A valid HTTP base uri to retrieve a timemap either in link header or in json format.
+                            Must start with http(s):// and end with a /. The default is the memento aggregator's json
+                            timemap base uri.
         :param check_memento_compliance: (boolean).
         :return: A MementoClient obj.
         """
         self.timegate_uri = timegate_uri
+        self.timemap_uri = timemap_uri
         self.check_native_timegate = check_native_timegate
         self.native_redirect_count = 0
 
@@ -85,8 +99,7 @@ class MementoClient(object):
         logging.debug("Starting with URI-G stem: " + self.timegate_uri)
 
         if not request_uri or not accept_datetime:
-            # TODO: error handling
-            return
+            raise MementoClientException("No uri was provided to retrieve mementos.", {})
 
         if not request_uri.startswith("http://") \
                 and not request_uri.startswith("https://"):
@@ -157,6 +170,53 @@ class MementoClient(object):
                                                             link_header=link_header, status_code=mem_status))
         return memento_info
 
+    def get_all_mementos(self, request_uri, target_datetime=None):
+        """
+
+        :param request_uri:
+        :param target_datetime:
+        :return:
+        """
+
+        logging.debug("getting TimeMap for URI-R {0}!!!".format(request_uri))
+        logging.debug("Starting with URI-T base url: " + self.timemap_uri)
+
+        if not request_uri:
+            raise MementoClientException("No uri was provided to retrieve mementos.", {})
+
+        if not request_uri.startswith("http://") \
+                and not request_uri.startswith("https://"):
+            raise MementoClientException("Only HTTP URIs are supported, URI %s unrecognized." % request_uri,
+                                         {"request_uri": request_uri})
+
+        http_tar_dt = None
+        if target_datetime is not None and type(target_datetime) != datetime:
+            raise TypeError("Expecting target_datetime to be of type datetime.")
+        if target_datetime:
+            http_tar_dt = self.convert_to_http_datetime(target_datetime)
+
+        # finding the actual original_uri in case the input uri is a memento
+        original_uri = self.get_original_uri(request_uri)
+        logging.debug("original uri: " + original_uri)
+
+        native_tg = None
+        if self.check_native_timegate:
+            native_tg = self.get_native_timegate_uri(original_uri, accept_datetime=datetime.now())
+            logging.debug("Found native URI-G:  " + str(native_tg))
+
+        timegate_uri = native_tg if native_tg else self.timegate_uri + original_uri
+
+        logging.debug("Using URI-G: " + timegate_uri)
+
+        response = self.request_head(timegate_uri, follow_redirects=True)
+
+        logging.debug("request method:  " + str(response.request.method))
+        logging.debug("request URI:  " + str(response.request.url))
+        logging.debug("request headers: " + str(response.request.headers))
+        logging.debug("response status code: " + str(response.status_code))
+        logging.debug("response headers:  " + str(response.headers))
+        raise NotImplementedError
+
     def get_native_timegate_uri(self, original_uri, accept_datetime):
         """
         Given an original URL and an accept datetime, check the original uri
@@ -216,7 +276,7 @@ class MementoClient(object):
         :param request_uri: the requested http uri.
         :return: (str) the original uri
         """
-        response = self.request_head(request_uri, None, follow_redirects=True)
+        response = self.request_head(request_uri, accept_datetime=None, follow_redirects=True)
         if response.headers.get("Link"):
             link_header = response.headers.get("Link")
             links = self.parse_link_header(link_header)
@@ -493,7 +553,7 @@ Status code received: {2}
         return links
 
     @staticmethod
-    def request_head(uri, accept_datetime, follow_redirects=False):
+    def request_head(uri, accept_datetime=None, follow_redirects=False):
         """
         Makes HEAD requests.
         :param uri: (str) the uri for the request.
@@ -505,7 +565,10 @@ Status code received: {2}
         headers = {}
         if accept_datetime:
             headers["Accept-Datetime"] = accept_datetime
-        return requests.head(uri, headers=headers, allow_redirects=follow_redirects)
+        try:
+            return requests.head(uri, headers=headers, allow_redirects=follow_redirects)
+        except (requests.exceptions.TooManyRedirects, requests.exceptions.ConnectionError) as e:
+            raise MementoClientException("An error occurred when requesting uri %s:\n%s" % (uri, e), {})
 
     def __prepare_memento_response(self, uri_m=None, dt_m=None, link_header=None, status_code=None):
         """
@@ -539,13 +602,6 @@ Status code received: {2}
             }
         logging.debug("The full response: " + repr(memento_info))
         return memento_info
-
-
-class MementoClientException(Exception):
-
-    def __init__(self, message, data):
-        super(MementoClientException, self).__init__(message)
-        self.data = data
 
 
 if __name__ == "__main__":
