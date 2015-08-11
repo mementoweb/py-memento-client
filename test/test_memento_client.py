@@ -121,6 +121,7 @@ def test_mementos_not_in_archive_uri(input_uri_r, input_datetime, input_uri_g):
 
     assert input_uri_r == original_uri
 
+@pytest.mark.skipif('linux' in sys.platform, reason="behaves differently")
 def test_bad_timegate():
 
     input_uri_r = "http://www.cnn.com"
