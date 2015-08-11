@@ -8,8 +8,6 @@ import codecs
 import os
 import sys
 
-import memento_client
-
 here = os.path.abspath(os.path.dirname(__file__))
 
 def read(*filenames, **kwargs):
@@ -36,14 +34,14 @@ class PyTest(TestCommand):
 
 setup(
     name="memento_client",
-    version=memento_client.__version__,
+    version="0.5.0",
     url='https://github.com/mementoweb/py-memento-client',
     license='LICENSE.txt',
-    author=memento_client.__author__,
+    author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
     tests_require=['pytest'],
     install_requires=[ 'requests', 'lxml' ],
     cmdclass={'test': PyTest},
-    author_email=memento_client.__author_email__,
+    author_email="prototeam@googlegroups.com",
     description='Official Python library for using the Memento Protocol',
     long_description=long_description,
     packages=['memento_client'],
