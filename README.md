@@ -15,7 +15,7 @@ This source distribution contains the following folders:
 
 To build this distribution, just type:
 ```
-python setup.py dist
+python setup.py build
 ```
 and it will create a dist folder containing a tar.gz containing this distribution.
 
