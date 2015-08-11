@@ -14,6 +14,13 @@ import shutil
 here = os.path.abspath(os.path.dirname(__file__))
 
 class PyTest(TestCommand):
+
+    user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
+
+    def initialize_options(self):
+        TestCommand.initialize_options(self)
+        self.pytest_args = []
+
     def finalize_options(self):
         TestCommand.finalize_options(self)
         self.test_args = []
@@ -21,7 +28,13 @@ class PyTest(TestCommand):
 
     def run_tests(self):
         import pytest
-        errcode = pytest.main(self.test_args)
+        import multiprocessing
+        procs = multiprocessing.cpu_count()
+
+        if procs > 1:
+            self.pytest_args.append("-n " + str(procs))
+
+        errcode = pytest.main(self.pytest_args)
         sys.exit(errcode)
 
 
@@ -48,11 +61,6 @@ class BetterClean(Command):
         shutil.rmtree('build', onerror = BetterClean.handle_remove_errors)
         shutil.rmtree('dist', onerror = BetterClean.handle_remove_errors)
 
-        try:
-            os.unlink('README.html')
-        except os.error:
-            print("Issue removing 'README.html' (probably does not exist), skipping...") 
-
 setup(
     name="memento_client",
     version="0.5.1.dev7",
@@ -60,7 +68,7 @@ setup(
     license='LICENSE.txt',
     author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
     author_email="prototeam@googlegroups.com",
-    tests_require=['pytest'],
+    tests_require=['pytest-xdist', 'pytest'],
     install_requires=[ 'requests>=2.7.0', 'lxml>=3.4.4' ],
     cmdclass={
         'test': PyTest,
@@ -77,9 +85,6 @@ This library allows one to find information about archived web pages using the M
 """,
     packages=['memento_client'],
     keywords='memento http web archives',
-    extras_require = {
-        'testing': ['pytest'],
-    },
     classifiers=[
         'Development Status :: 4 - Beta',
 

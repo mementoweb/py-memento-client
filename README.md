@@ -26,10 +26,16 @@ python setup.py clean
 will remove the contents of the build and dist folders.
 
 To run automated tests: 
+
+We use pytest-xdist to speed up testing across multiple processors and have found that it behaves strangely inside the setuptools environment, so you will need to:
+```
+pip install pytest-xdist
+```
+before running:
 ```
 python setup.py test
 ```
-Note that these rely upon live web resources, which should not change.
+Note that these rely upon live web resources, which may respond differently depending on network connectivity and location.
 
 # USING THE LIBRARY
 
