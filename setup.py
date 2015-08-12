@@ -32,7 +32,10 @@ class PyTest(TestCommand):
         procs = multiprocessing.cpu_count()
 
         if procs > 1:
-            self.pytest_args.append("-n " + str(procs))
+            if type(self.pytest_args) == list:
+                self.pytest_args.append("-n " + str(procs))
+            elif type(self.pytest_args) == str:
+                self.pytest_args += " -n " + str(procs)
 
         errcode = pytest.main(self.pytest_args)
         sys.exit(errcode)
