@@ -2,6 +2,7 @@ import pytest
 import csv
 import datetime
 import sys
+import requests
 from memento_client import MementoClient
 
 def load_testdata(filename, keylist):
@@ -122,8 +123,21 @@ def test_mementos_not_in_archive_uri(input_uri_r, input_datetime, input_uri_g):
 
     assert input_uri_r == original_uri
 
-@pytest.mark.skipif('linux' in sys.platform, reason="behaves differently")
-def test_bad_timegate():
+@pytest.mark.skipif('darwin' in sys.platform, reason="requests on Linux behaves differently than OSX")
+def test_bad_timegate_linux():
+
+    input_uri_r = "http://www.cnn.com"
+    bad_uri_g = "http://www.example.com"
+    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    mc = MementoClient(timegate_uri=bad_uri_g)
+
+    with pytest.raises(requests.ConnectionError):
+        original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
+
+
+@pytest.mark.skipif('linux' in sys.platform, reason="requests on OSX behaves differently than Linux")
+def test_bad_timegate_osx():
 
     input_uri_r = "http://www.cnn.com"
     bad_uri_g = "http://www.example.com"
