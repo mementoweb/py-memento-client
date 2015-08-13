@@ -7,3 +7,5 @@ logs
 **/*.swp
 **/.idea
 **/.gitmodules
+.eggs
+dist
