@@ -1,4 +1,5 @@
 """
+Contains helper methods for the memento client.
 """
 
 from lxml import etree
@@ -12,7 +13,8 @@ else:
     import StringIO
 
 
-DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
+DEFAULT_ARCHIVE_REGISTRY_URI = \
+    "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
 
 
 def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
@@ -21,10 +23,12 @@ def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
     so that one of them can be chosen as the preferred timegate.
     Retrieves a list of archives from the registry xml file, and provides the
     archive list along with their timegate uris.
-    Use self.timegate_uri = "new timegate uri" to override the default timegate preference.
+    Use self.timegate_uri = "new timegate uri" to override the default
+    timegate preference.
 
     :param archive_registry: (str) A valid base uri for the registry xml file.
-    :return: (dict) A map of the archive id and their corresponding full name, timegate of the archive.
+    :return: (dict) A map of the archive id and their corresponding full name,
+                timegate of the archive.
     """
 
     archive_list = {}
@@ -33,7 +37,7 @@ def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
     data = etree.parse(StringIO.StringIO(response.content))
 
     for link in data.xpath("./link"):
-        id = link.attrib["id"]
+        arc_id = link.attrib["id"]
         name = link.attrib["longname"]
         timegate_uri = link.find("timegate").attrib["uri"]
         memento_status = link.find("archive").attrib["memento-status"]
@@ -41,11 +45,8 @@ def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
         if memento_status == "yes":
             mem_status = True
 
-        archive_list[id] = {"name": name,
-                            "timegate_uri": timegate_uri,
-                            "memento_status": mem_status,
-                            }
+        archive_list[arc_id] = {"name": name,
+                                "timegate_uri": timegate_uri,
+                                "memento_status": mem_status}
 
     return archive_list
-
-

@@ -1,11 +1,8 @@
 
 # much of this was shamelessly stolen from
 # https://www.jeffknupp.com/blog/2013/08/16/open-sourcing-a-python-project-the-right-way/
-from setuptools import setup, find_packages, Command
-from setuptools.command.build_py import build_py
+from setuptools import setup, Command
 from setuptools.command.test import test as TestCommand
-import io
-import codecs
 import os
 import sys
 import glob
