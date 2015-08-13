@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-from .memento_client import MementoClient
+from .memento_client import MementoClient, MementoClientException
 
 __version__ = "0.5.0"
 __author__ = "Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel"

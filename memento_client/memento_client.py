@@ -100,7 +100,7 @@ class MementoClient(object):
         logging.debug("Starting with URI-G stem: " + self.timegate_uri)
 
         if not request_uri or not accept_datetime:
-            raise MementoClientException("No uri was provided to retrieve mementos.", {})
+            raise MementoClientException("No uri or datetime was provided to retrieve mementos.", {})
 
         if not request_uri.startswith("http://") \
                 and not request_uri.startswith("https://"):
@@ -200,10 +200,12 @@ class MementoClient(object):
         original_uri = self.get_original_uri(request_uri)
         logging.debug("original uri: " + original_uri)
 
-        native_tg = None
+        native_tm = None
         if self.check_native_timegate:
-            native_tg = self.get_native_timegate_uri(original_uri, accept_datetime=datetime.now())
-            logging.debug("Found native URI-G:  " + str(native_tg))
+            now = datetime.now()
+            native_tm = self.get_native_timemap_uri(original_uri, accept_datetime=now)
+
+            logging.debug("Found native URI-G:  " + str(native_tm))
 
         timegate_uri = native_tg if native_tg else self.timegate_uri + original_uri
 
@@ -287,6 +289,37 @@ class MementoClient(object):
                 return org.get("original").get("uri")
 
         return request_uri
+
+    def get_native_timemap_uri(self, original_uri):
+        """
+
+        :param original_uri:
+        :return:
+        """
+        response = self.request_head(original_uri, follow_redirects=True)
+
+        def parse_timemap_link(link_header):
+            lh = self.parse_link_header(link_header)
+            ls = self.get_uri_dt_for_rel(lh, ["timemap"])
+            return ls.get("timemap")
+
+        if not response.headers.get("Link"):
+            return
+        link_header = self.parse_link_header(response.headers.get("Link"))
+        links = self.get_uri_dt_for_rel(link_header, ["timegate", "timemap"])
+        if links.get("timemap"):
+            return links.get("timemap").get("uri")
+        elif links.get("timegate"):
+            tg_res = self.request_head(links.get("timegate").get("uri"), follow_redirects=True)
+            tg_links = parse_timemap_link(tg_res.headers.get("Link"))
+            if tg_links:
+                return tg_links.get("uri")
+            else:
+                for res in tg_res.history:
+                    res_links = parse_timemap_link(res.headers.get("Link"))
+                    if res_links:
+                        return res_links.get("uri")
+        return
 
     @staticmethod
     def is_timegate(uri, accept_datetime=None, response=None):
