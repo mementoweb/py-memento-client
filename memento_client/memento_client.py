@@ -171,53 +171,6 @@ class MementoClient(object):
                                                             link_header=link_header, status_code=mem_status))
         return memento_info
 
-    def get_all_mementos(self, request_uri, target_datetime=None):
-        """
-
-        :param request_uri:
-        :param target_datetime:
-        :return:
-        """
-
-        logging.debug("getting TimeMap for URI-R {0}!!!".format(request_uri))
-        logging.debug("Starting with URI-T base url: " + self.timemap_uri)
-
-        if not request_uri:
-            raise MementoClientException("No uri was provided to retrieve mementos.", {})
-
-        if not request_uri.startswith("http://") \
-                and not request_uri.startswith("https://"):
-            raise MementoClientException("Only HTTP URIs are supported, URI %s unrecognized." % request_uri,
-                                         {"request_uri": request_uri})
-
-        http_tar_dt = None
-        if target_datetime is not None and type(target_datetime) != datetime:
-            raise TypeError("Expecting target_datetime to be of type datetime.")
-        if target_datetime:
-            http_tar_dt = self.convert_to_http_datetime(target_datetime)
-
-        # finding the actual original_uri in case the input uri is a memento
-        original_uri = self.get_original_uri(request_uri)
-        logging.debug("original uri: " + original_uri)
-
-        native_tg = None
-        if self.check_native_timegate:
-            native_tg = self.get_native_timegate_uri(original_uri, accept_datetime=datetime.now())
-            logging.debug("Found native URI-G:  " + str(native_tg))
-
-        timegate_uri = native_tg if native_tg else self.timegate_uri + original_uri
-
-        logging.debug("Using URI-G: " + timegate_uri)
-
-        response = self.request_head(timegate_uri, follow_redirects=True)
-
-        logging.debug("request method:  " + str(response.request.method))
-        logging.debug("request URI:  " + str(response.request.url))
-        logging.debug("request headers: " + str(response.request.headers))
-        logging.debug("response status code: " + str(response.status_code))
-        logging.debug("response headers:  " + str(response.headers))
-        raise NotImplementedError
-
     def get_native_timegate_uri(self, original_uri, accept_datetime):
         """
         Given an original URL and an accept datetime, check the original uri
