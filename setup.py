@@ -61,7 +61,7 @@ setup(
     author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
     author_email="prototeam@googlegroups.com",
     tests_require=['pytest'],
-    install_requires=[ 'requests>=2.7.0', 'lxml>=3.4.4' ],
+    install_requires=['requests>=2.7.0'],
     cmdclass={
         'test': PyTest,
         'cleanall': BetterClean
@@ -79,6 +79,7 @@ This library allows one to find information about archived web pages using the M
     keywords='memento http web archives',
     extras_require = {
         'testing': ['pytest'],
+        "utils": ["lxml"]
     },
     classifiers=[
         'Development Status :: 4 - Beta',

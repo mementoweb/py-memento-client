@@ -5,28 +5,24 @@ A Memento Client library.
 
 import requests
 from datetime import datetime
-from lxml import etree
 import sys
 import logging
 import os
-import grequests
 
 
 # Python 2.7 and 3.X support are different for urlparse
 if sys.version_info[0] == 3:
     from urllib.parse import urlparse
-    from io import StringIO
 else:
-    import StringIO
     from urlparse import urlparse
 
 if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
     logging.basicConfig(level=logging.DEBUG)
 
-DEFAULT_ARCHIVE_REGISTRY_URI = "http://labs.mementoweb.org/aggregator_config/archivelist.xml"
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
 DEFAULT_TIMEMAP_JSON_BASE_URI = "http://labs.mementoweb.org/timemap/json/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
+MAX_REDIRECTS = 30
 
 
 class MementoClientException(Exception):
@@ -41,7 +37,8 @@ class MementoClient(object):
     def __init__(self,
                  timegate_uri=DEFAULT_TIMEGATE_BASE_URI,
                  check_native_timegate=True,
-                 timemap_uri=DEFAULT_TIMEMAP_JSON_BASE_URI):
+                 timemap_uri=DEFAULT_TIMEMAP_JSON_BASE_URI,
+                 max_redirects=MAX_REDIRECTS):
         """
         A Memento Client that makes it straightforward to access the Web of the past
         as it is to access the current Web.
@@ -75,12 +72,14 @@ class MementoClient(object):
                             Must start with http(s):// and end with a /. The default is the memento aggregator's json
                             timemap base uri.
         :param check_memento_compliance: (boolean).
+        :param max_redirects: (int) the maximum number of redirects allowed for all HTTP requests to be made.
         :return: A MementoClient obj.
         """
         self.timegate_uri = timegate_uri
         self.timemap_uri = timemap_uri
         self.check_native_timegate = check_native_timegate
         self.native_redirect_count = 0
+        self.max_redirects = max_redirects
 
     def get_memento_info(self, request_uri, accept_datetime):
         """
@@ -99,13 +98,13 @@ class MementoClient(object):
         logging.debug("getting URI-R {0} at accept-datetime {1}!!!".format(request_uri, str(accept_datetime)))
         logging.debug("Starting with URI-G stem: " + self.timegate_uri)
 
-        if not request_uri or not accept_datetime:
-            raise MementoClientException("No uri was provided to retrieve mementos.", {})
+        assert request_uri and accept_datetime
+        # if not request_uri or not accept_datetime:
+        #     raise MementoClientException("No uri or accept datetime was provided to retrieve mementos.", {})
 
         if not request_uri.startswith("http://") \
                 and not request_uri.startswith("https://"):
-            # TODO: create a relevant exception...
-            raise Exception("Only HTTP URIs are supported, URI %s unrecognized." % request_uri)
+            raise ValueError("Only HTTP URIs are supported, URI %s unrecognized." % request_uri)
 
         if type(accept_datetime) != datetime:
             raise TypeError("Expecting accept_datetime to be of type datetime.")
@@ -158,7 +157,11 @@ class MementoClient(object):
                 logging.debug("link header:  " + str(link_header))
 
                 if not link_header:
-                    raise Exception("The TimeGate (%s) did not return a Link header." % timegate_uri)
+                    raise MementoClientException("The TimeGate (%s) did not return a Link header." % timegate_uri,
+                                                 {"timegate_uri": timegate_uri,
+                                                  "original_uri": original_uri,
+                                                  "request_uri": request_uri,
+                                                  "memento_uri": uri_m})
                 break
 
         memento_info = {}
@@ -197,7 +200,7 @@ class MementoClient(object):
             logging.debug("Memento-Datetime found in headers for URI-R: {0}, so assuming it is a URI-M.".format(original_uri))
             return
 
-        if 299 < org_response.status_code < 400 and self.native_redirect_count < 50:
+        if 299 < org_response.status_code < 400 and self.native_redirect_count < self.max_redirects:
             logging.debug("Been redirected from URI-R: " + original_uri)
             self.native_redirect_count += 1
             return follow()
@@ -308,43 +311,6 @@ Status code received: {2}
                     return True
 
         return False
-
-    @staticmethod
-    def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
-        """
-        This provides a list of archives and their corresponding timegates,
-        so that one of them can be chosen as the preferred timegate.
-        Retrieves a list of archives from the registry xml file, and provides the
-        archive list along with their timegate uris.
-        Use self.timegate_uri = "new timegate uri" to override the default timegate preference.
-
-        :param archive_registry: (str) A valid base uri for the registry xml file.
-        :return: (dict) A map of the archive id and their corresponding full name, timegate of the archive.
-        """
-
-        archive_list = {}
-        response = requests.get(archive_registry_uri)
-        # parse xml
-        try:
-            data = etree.parse(StringIO.StringIO(response.content))
-        except:
-            return archive_list
-
-        for link in data.xpath("./link"):
-            id = link.attrib["id"]
-            name = link.attrib["longname"]
-            timegate_uri = link.find("timegate").attrib["uri"]
-            memento_status = link.find("archive").attrib["memento-status"]
-            mem_status = False
-            if memento_status == "yes":
-                mem_status = True
-
-            archive_list[id] = {"name": name,
-                                "timegate_uri": timegate_uri,
-                                "memento_status": mem_status,
-                                }
-
-        return archive_list
 
     @staticmethod
     def convert_to_datetime(dt):
@@ -506,8 +472,7 @@ Status code received: {2}
 
         return links
 
-    @staticmethod
-    def request_head(uri, accept_datetime=None, follow_redirects=False):
+    def request_head(self, uri, accept_datetime=None, follow_redirects=False):
         """
         Makes HEAD requests.
         :param uri: (str) the uri for the request.
@@ -519,10 +484,8 @@ Status code received: {2}
         headers = {}
         if accept_datetime:
             headers["Accept-Datetime"] = accept_datetime
-        try:
-            return requests.head(uri, headers=headers, allow_redirects=follow_redirects)
-        except (requests.exceptions.TooManyRedirects, requests.exceptions.ConnectionError) as e:
-            raise MementoClientException("An error occurred when requesting uri %s:\n%s" % (uri, e), {})
+        return requests.head(uri, headers=headers, allow_redirects=follow_redirects,
+                             max_redirects=self.max_redirects)
 
     def __prepare_memento_response(self, uri_m=None, dt_m=None, link_header=None, status_code=None):
         """
