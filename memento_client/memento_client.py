@@ -20,7 +20,6 @@ if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
     logging.basicConfig(level=logging.DEBUG)
 
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
-DEFAULT_TIMEMAP_JSON_BASE_URI = "http://labs.mementoweb.org/timemap/json/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
 MAX_REDIRECTS = 30
 
@@ -43,7 +42,6 @@ class MementoClient(object):
     def __init__(self,
                  timegate_uri=DEFAULT_TIMEGATE_BASE_URI,
                  check_native_timegate=True,
-                 timemap_uri=DEFAULT_TIMEMAP_JSON_BASE_URI,
                  max_redirects=MAX_REDIRECTS):
         """
         A Memento Client that makes it straightforward to access the Web of the
@@ -81,17 +79,11 @@ class MementoClient(object):
 
         :param timegate_uri: (str) A valid HTTP base uri for a timegate.
                             Must start with http(s):// and end with a /.
-        :param timemap_uri: (str) A valid HTTP base uri to retrieve a timemap
-                            either in link header or in json format.
-                            Must start with http(s):// and end with a /.
-                            The default is the memento aggregator's json
-                            timemap base uri.
         :param max_redirects: (int) the maximum number of redirects allowed
                               for all HTTP requests to be made.
         :return: A MementoClient obj.
         """
         self.timegate_uri = timegate_uri
-        self.timemap_uri = timemap_uri
         self.check_native_timegate = check_native_timegate
         self.native_redirect_count = 0
         self.max_redirects = max_redirects
