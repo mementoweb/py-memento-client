@@ -88,7 +88,7 @@ class MementoClient(object):
         self.native_redirect_count = 0
         self.max_redirects = max_redirects
 
-    def get_memento_info(self, request_uri, accept_datetime):
+    def get_memento_info(self, request_uri, accept_datetime=None):
         """
         Given an original uri and an accept datetime, this method queries the
         preferred timegate and returns the closest memento uri, along with
@@ -99,10 +99,14 @@ class MementoClient(object):
 
         :param request_uri: (str) The input http uri.
         :param accept_datetime: (datetime) The datetime object of the accept
-                                datetime.
+                                datetime. The current datetime is used if none
+                                is provided.
         :return: (dict) A map of uri and datetime for the
                  closest/prev/next/first/last mementos.
         """
+
+        if not accept_datetime:
+            accept_datetime = datetime.now()
 
         logging.debug("getting URI-R {0} at accept-datetime {1}!!!".
                       format(request_uri, str(accept_datetime)))
