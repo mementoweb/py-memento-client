@@ -63,7 +63,7 @@ class BetterClean(Command):
 
 setup(
     name="memento_client",
-    version="0.5.1.dev7",
+    version="0.5.1",
     url='https://github.com/mementoweb/py-memento-client',
     license='LICENSE.txt',
     author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
@@ -90,7 +90,6 @@ This library allows one to find information about archived web pages using the M
         "utils": ["lxml"]
     },
     classifiers=[
-        'Development Status :: 4 - Beta',
 
         'Intended Audience :: Developers',
 
