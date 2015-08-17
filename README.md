@@ -37,7 +37,7 @@ This simple use case gets a Memento from the default Memento TimeGate for "http:
 
 ```python
 import datetime
-import memento_client
+from memento_client import MementoClient
 
 dt = datetime.datetime(2010, 4, 24, 19, 0)
 
@@ -52,7 +52,7 @@ One can specify a specific TimeGate like so.
 
 ```python
 import datetime
-import memento_client
+from memento_client import MementoClient
 
 dt = datetime.datetime(2010, 4, 24, 19, 0)
 uri = "http://lanl.gov"
