@@ -1,11 +1,8 @@
 
 # much of this was shamelessly stolen from
 # https://www.jeffknupp.com/blog/2013/08/16/open-sourcing-a-python-project-the-right-way/
-from setuptools import setup, find_packages, Command
-from setuptools.command.build_py import build_py
+from setuptools import setup, Command
 from setuptools.command.test import test as TestCommand
-import io
-import codecs
 import os
 import sys
 import glob
@@ -14,6 +11,13 @@ import shutil
 here = os.path.abspath(os.path.dirname(__file__))
 
 class PyTest(TestCommand):
+
+    user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
+
+    def initialize_options(self):
+        TestCommand.initialize_options(self)
+        self.pytest_args = []
+
     def finalize_options(self):
         TestCommand.finalize_options(self)
         self.test_args = []
@@ -21,7 +25,16 @@ class PyTest(TestCommand):
 
     def run_tests(self):
         import pytest
-        errcode = pytest.main(self.test_args)
+        import multiprocessing
+        procs = multiprocessing.cpu_count()
+
+        if procs > 1:
+            if type(self.pytest_args) == list:
+                self.pytest_args.append("-n " + str(procs))
+            elif type(self.pytest_args) == str:
+                self.pytest_args += " -n " + str(procs)
+
+        errcode = pytest.main(self.pytest_args)
         sys.exit(errcode)
 
 
@@ -48,20 +61,15 @@ class BetterClean(Command):
         shutil.rmtree('build', onerror = BetterClean.handle_remove_errors)
         shutil.rmtree('dist', onerror = BetterClean.handle_remove_errors)
 
-        try:
-            os.unlink('README.html')
-        except os.error:
-            print("Issue removing 'README.html' (probably does not exist), skipping...") 
-
 setup(
     name="memento_client",
-    version="0.5.1.dev7",
+    version="0.5.2.dev1",
     url='https://github.com/mementoweb/py-memento-client',
     license='LICENSE.txt',
     author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
     author_email="prototeam@googlegroups.com",
-    tests_require=['pytest'],
-    install_requires=[ 'requests>=2.7.0', 'lxml>=3.4.4' ],
+    install_requires=['requests>=2.7.0'],
+    tests_require=['pytest-xdist', 'pytest'],
     cmdclass={
         'test': PyTest,
         'cleanall': BetterClean
@@ -79,9 +87,9 @@ This library allows one to find information about archived web pages using the M
     keywords='memento http web archives',
     extras_require = {
         'testing': ['pytest'],
+        "utils": ["lxml"]
     },
     classifiers=[
-        'Development Status :: 4 - Beta',
 
         'Intended Audience :: Developers',
 

@@ -21,15 +21,15 @@ and it will create a dist folder containing a tar.gz containing this distributio
 
 To start fresh: 
 ```
-python setup.py clean
+python setup.py cleanall
 ```
-will remove the contents of the build and dist folders.
+will remove all folders (except .eggs) created during the build/test process.
 
 To run automated tests: 
 ```
 python setup.py test
 ```
-Note that these rely upon live web resources, which should not change.
+Note that these rely upon live web resources, which may respond differently depending on network connectivity and location.
 
 # USING THE LIBRARY
 

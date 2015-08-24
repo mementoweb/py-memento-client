@@ -1,7 +1,8 @@
 import pytest
 import csv
 import datetime
-#from memento_client import MementoClientException
+import sys
+import requests
 from memento_client import MementoClient
 import memento_client
 
@@ -61,18 +62,6 @@ mementos_not_found_testdata = load_testdata(
     "test/mementos_not_in_archive_testdata.csv",
     [ "Input URI-R", "Accept-Datetime", "Input URI-G" ] )
 
-def test_bad_timegate():
-
-    input_uri_r = "http://www.cnn.com"
-    bad_uri_g = "http://www.example.com"
-    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
-
-    mc = MementoClient(timegate_uri=bad_uri_g)
-
-    original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
-    assert pytest.raises(memento_client.MementoClientException, mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri"))
-
-    #assert input_uri_r == original_uri
 
 @pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
 def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
@@ -131,6 +120,32 @@ def test_mementos_not_in_archive_uri(input_uri_r, input_datetime, input_uri_g):
     mc = MementoClient(timegate_uri=input_uri_g)
 
     accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
+
+    assert input_uri_r == original_uri
+
+@pytest.mark.skipif('darwin' in sys.platform, reason="requests on Linux behaves differently than OSX")
+def test_bad_timegate_linux():
+
+    input_uri_r = "http://www.cnn.com"
+    bad_uri_g = "http://www.example.com"
+    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    mc = MementoClient(timegate_uri=bad_uri_g)
+
+    with pytest.raises(requests.ConnectionError):
+        original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
+
+
+@pytest.mark.skipif('linux' in sys.platform, reason="requests on OSX behaves differently than Linux")
+def test_bad_timegate_osx():
+
+    input_uri_r = "http://www.cnn.com"
+    bad_uri_g = "http://www.example.com"
+    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    mc = MementoClient(timegate_uri=bad_uri_g)
 
     original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
 

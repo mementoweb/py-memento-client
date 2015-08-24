@@ -1,0 +1,11 @@
+.gitignore
+*.egg-info
+build
+*.pyc
+**/*.pyc
+logs
+**/*.swp
+**/.idea
+**/.gitmodules
+.eggs
+dist
