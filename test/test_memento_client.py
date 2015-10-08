@@ -62,6 +62,11 @@ mementos_not_found_testdata = load_testdata(
     "test/mementos_not_in_archive_testdata.csv",
     [ "Input URI-R", "Accept-Datetime", "Input URI-G" ] )
 
+nonexistent_urirs = load_testdata(
+    "test/nonexistent_urirs_testdata.csv",
+    [ "Input URI-R" ]
+    )
+
 
 @pytest.mark.parametrize("input_uri_r,input_datetime,expected_uri_m", memento_uri_default_testdata)
 def test_get_memento_uri_default(input_uri_r, input_datetime, expected_uri_m):
@@ -150,6 +155,22 @@ def test_bad_timegate_osx():
     original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
 
     assert input_uri_r == original_uri
+
+@pytest.mark.parametrize("input_uri_r", nonexistent_urirs)
+def test_nonexistent_urirs(input_uri_r):
+
+    input_uri_r = input_uri_r[0]
+
+    accept_datetime = datetime.datetime.strptime("Thu, 01 Jan 1970 00:00:00 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    mc = MementoClient()
+
+    memento_info = mc.get_memento_info(input_uri_r, accept_datetime)
+
+    assert memento_info.get("original_uri") == input_uri_r
+
+    assert memento_info.get("timegate_uri") == 'http://timetravel.mementoweb.org/timegate/{}'.format(input_uri_r)
+
 
 def good_url_slash_at_end():
 
