@@ -5,6 +5,7 @@ cache: # caching is only available for customers who pay
 python:
     - "2.7"
     - "3.4"
+    - "3.5"
 env:
     - DEBUG_MEMENTO_CLIENT=1
 script:
