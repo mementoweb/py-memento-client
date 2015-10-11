@@ -20,6 +20,7 @@ if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
     logging.basicConfig(level=logging.DEBUG)
 
 DEFAULT_TIMEGATE_BASE_URI = "http://timetravel.mementoweb.org/timegate/"
+DEFAULT_TIMEMAP_JSON_BASE_URI = "http://labs.mementoweb.org/timemap/json/"
 HTTP_DT_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
 MAX_REDIRECTS = 30
 
@@ -41,6 +42,7 @@ class MementoClient(object):
 
     def __init__(self,
                  timegate_uri=DEFAULT_TIMEGATE_BASE_URI,
+                 timemap_uri=DEFAULT_TIMEMAP_JSON_BASE_URI,
                  check_native_timegate=True,
                  max_redirects=MAX_REDIRECTS):
         """
@@ -84,9 +86,12 @@ class MementoClient(object):
         :return: A MementoClient obj.
         """
         self.timegate_uri = timegate_uri
+        self.timemap_uri = timemap_uri
         self.check_native_timegate = check_native_timegate
         self.native_redirect_count = 0
         self.max_redirects = max_redirects
+        self.paged_timemap_processed_uris = {}
+        self.timemap_mementos = {}
 
     def get_memento_info(self, request_uri, accept_datetime=None):
         """
@@ -207,17 +212,18 @@ class MementoClient(object):
         :return:
         """
 
+        assert request_uri
+
         logging.debug("getting TimeMap for URI-R {0}!!!".format(request_uri))
         logging.debug("Starting with URI-T base url: " + self.timemap_uri)
 
-        if not request_uri:
-            raise MementoClientException("No uri was provided to retrieve mementos.", {})
-
         if not request_uri.startswith("http://") \
                 and not request_uri.startswith("https://"):
-            raise MementoClientException("Only HTTP URIs are supported, URI %s unrecognized." % request_uri,
-                                         {"request_uri": request_uri})
+            raise ValueError("Only HTTP URIs are supported, "
+                             "URI %s unrecognized." % request_uri,
+                             {"request_uri": request_uri})
 
+        # TODO: implement support for target dt
         http_tar_dt = None
         if target_datetime is not None and type(target_datetime) != datetime:
             raise TypeError("Expecting target_datetime to be of type datetime.")
@@ -228,25 +234,39 @@ class MementoClient(object):
         original_uri = self.get_original_uri(request_uri)
         logging.debug("original uri: " + original_uri)
 
+        self.paged_timemap_processed_uris[original_uri] = []
+        self.timemap_mementos[original_uri] = []
+
         native_tm = None
         if self.check_native_timegate:
             now = datetime.now()
-            native_tm = self.get_native_timemap_uri(original_uri, accept_datetime=now)
+            native_tm = self.get_native_timemap_uri(original_uri, now)
+            logging.debug("Found native URI-T:  " + str(native_tm))
 
-            logging.debug("Found native URI-G:  " + str(native_tm))
+        timemap_uri = native_tm if native_tm \
+            else self.timemap_uri + original_uri
 
-        timegate_uri = native_tg if native_tg else self.timegate_uri + original_uri
+        logging.debug("Using URI-T: " + timemap_uri)
 
-        logging.debug("Using URI-G: " + timegate_uri)
+        response = requests.get(timemap_uri)
+        is_json_tm = False
+        if response.headers.get("content-type") == "application/json":
+            self.process_json_timemap(None, original_uri, response=response)
+            is_json_tm = True
+        elif response.headers.get("content-type") == "application/link-format":
+            self.process_link_timemap(None, original_uri, response=response)
 
-        response = self.request_head(timegate_uri, follow_redirects=True)
+        timemap = {}
+        timemap["original_uri"] = original_uri
+        timemap["timemap_uri"] = {}
+        if is_json_tm:
+            timemap["timemap_uri"]["json_format"] = timemap_uri
+        else:
+            timemap["timemap_uri"]["link_format"] = timemap_uri
 
-        logging.debug("request method:  " + str(response.request.method))
-        logging.debug("request URI:  " + str(response.request.url))
-        logging.debug("request headers: " + str(response.request.headers))
-        logging.debug("response status code: " + str(response.status_code))
-        logging.debug("response headers:  " + str(response.headers))
-        raise NotImplementedError
+        timemap["mementos"] = {}
+        timemap["mementos"]["list"] = self.timemap_mementos[original_uri]
+        return timemap
 
     def get_native_timegate_uri(self, original_uri, accept_datetime):
         """
@@ -308,7 +328,7 @@ class MementoClient(object):
         tg_uri = None
 
         if "timegate" in tg:
-            tg_uri = tg["timegate"].get("uri")
+            tg_uri = tg["timegate"][0].get("uri")
 
         logging.debug("Search for native URI-G yielded:  " + str(tg_uri))
 
@@ -331,39 +351,141 @@ class MementoClient(object):
             org = self.get_uri_dt_for_rel(links, ["original"])
             if org.get("original"):
                 logging.debug("Org URI from request uri headers: " + repr(org))
-                return org.get("original").get("uri")
+                return org.get("original")[0].get("uri")
 
         return request_uri
 
-    def get_native_timemap_uri(self, original_uri):
+    def get_native_timemap_uri(self, original_uri, accept_datetime):
         """
 
         :param original_uri:
         :return:
         """
-        response = self.request_head(original_uri, follow_redirects=True)
+
+        logging.debug("GET_NATIVE_TIMEMAP_URI: %s, %s" %
+                      (original_uri, accept_datetime))
+
+        response = self.request_head(original_uri,
+                                     accept_datetime=
+                                     self.convert_to_http_datetime(
+                                         accept_datetime),
+                                     follow_redirects=True)
 
         def parse_timemap_link(link_header):
             lh = self.parse_link_header(link_header)
             ls = self.get_uri_dt_for_rel(lh, ["timemap"])
-            return ls.get("timemap")
+
+            if not ls.get("timemap"):
+                return
+            return ls.get("timemap")[0].get("uri")
 
         if not response.headers.get("Link"):
+            logging.debug("original uri provides no link header --"
+                          " no memento support")
             return
+
         link_header = self.parse_link_header(response.headers.get("Link"))
         links = self.get_uri_dt_for_rel(link_header, ["timegate", "timemap"])
+
+        logging.debug("Link Header for Original: %s" % repr(links))
+
         if links.get("timemap"):
-            return links.get("timemap").get("uri")
+            logging.debug("Found timemap uri in original's link header: %s" %
+                          links.get("timemap")[0].get("uri"))
+            return links.get("timemap")[0].get("uri")
+
         elif links.get("timegate"):
-            tg_res = self.request_head(links.get("timegate").get("uri"), follow_redirects=True)
+            logging.debug("Looking into Timegate and Memento for TM URI")
+            tg_res = self.request_head(links.get("timegate")[0].get("uri"),
+                                       accept_datetime=
+                                       self.convert_to_http_datetime(
+                                           accept_datetime),
+                                       follow_redirects=True)
             tg_links = parse_timemap_link(tg_res.headers.get("Link"))
             if tg_links:
-                return tg_links.get("uri")
+                logging.debug("Found TimeMap URI in Memento Link Header: %s" %
+                              tg_links)
+                return tg_links
             else:
+                logging.debug("Checking TG redirects for TM URI")
                 for res in tg_res.history:
                     res_links = parse_timemap_link(res.headers.get("Link"))
                     if res_links:
-                        return res_links.get("uri")
+                        logging.debug("TM URI Found in TG Link Header: %s" %
+                                      res_links)
+                        return res_links
+        return
+
+    def process_link_timemap(self, timemap_uri, original_uri, response=None):
+        logging.debug("Processing a Link TimeMap")
+        if not response:
+            response = requests.get(timemap_uri)
+
+        timemap = {}
+        try:
+            tm_links = self.parse_link_header(response.content)
+            timemap = self.get_uri_dt_for_rel(tm_links, ["memento", "timemap"])
+        except:
+            raise
+
+        if timemap.get("memento"):
+            logging.debug("Number of mementos found: %s" %
+                          len(timemap.get("memento")))
+            mementos = [dict(
+                uri=mem["uri"],
+                datetime=self.convert_to_datetime(mem["datetime"][0]))
+                for mem in timemap.get("memento")]
+
+            self.timemap_mementos[original_uri].extend(mementos)
+        if timemap.get("timemap"):
+            logging.debug("Found Paged/Index Timemaps")
+            for tmap in timemap.get("timemap"):
+                if tmap.get("uri") in self.paged_timemap_processed_uris:
+                    continue
+                logging.debug("Processing paged/index timemap uri: %s" %
+                              tmap.get("uri"))
+                self.paged_timemap_processed_uris.get(original_uri).\
+                    append(tmap.get("uri"))
+                self.process_link_timemap(tmap.get("uri"), original_uri)
+        return
+
+    def process_json_timemap(self, timemap_uri, original_uri, response=None):
+        logging.debug("Processing a JSON TimeMap.")
+        if not response:
+            response = requests.get(timemap_uri)
+
+        timemap = {}
+        try:
+            timemap = response.json()
+        except ValueError:
+            raise
+
+        if timemap.get("timemap_index"):
+            logging.debug("Index TimeMap found.")
+            for index in timemap.get("timemap_index"):
+                logging.debug("Index TM URI: %s" % index.get("uri"))
+                self.process_json_timemap(index.get("uri"), original_uri)
+        if timemap.get("mementos"):
+            logging.debug("Number of Mementos found: %s" %
+                          len(timemap.get("mementos").get("list")))
+            mementos = [dict(
+                uri=mem["uri"],
+                datetime=self.convert_to_datetime(
+                    mem["datetime"], dt_format="%Y-%m-%dT%H:%M:%SZ"))
+                for mem in timemap.get("mementos").get("list")]
+            #self.timemap_mementos[original_uri].extend(
+            #    timemap.get("mementos").get("list"))
+            self.timemap_mementos[original_uri].extend(mementos)
+        if timemap.get("timemap"):
+            logging.debug("Found Paged TimeMap.")
+            for tmap in timemap.get("timemap"):
+                if tmap.get("uri") in self.paged_timemap_processed_uris:
+                    continue
+                logging.debug("Processing paged timemap uri: %s" %
+                              tmap.get("uri"))
+                self.paged_timemap_processed_uris.get(original_uri) \
+                    .append(tmap.get("uri"))
+                self.process_json_timemap(tmap.get("uri"), original_uri)
         return
 
     @staticmethod
@@ -441,7 +563,7 @@ Status code received: {2}
         return False
 
     @staticmethod
-    def convert_to_datetime(dt):
+    def convert_to_datetime(dt, dt_format=HTTP_DT_FORMAT):
         """
         Converts a date string in the HTTP date format to a datetime obj.
         eg: "Sun, 01 Apr 2010 12:00:00 GMT" -> datetime()
@@ -450,7 +572,7 @@ Status code received: {2}
         """
         if not dt:
             return
-        return datetime.strptime(dt, HTTP_DT_FORMAT)
+        return datetime.strptime(dt, dt_format)
 
     @staticmethod
     def convert_to_http_datetime(dt):
@@ -481,8 +603,11 @@ Status code received: {2}
         for uri in links:
             for rel in rel_types:
                 if rel in links.get(uri).get("rel"):
-                    uris[rel] = {"uri": uri,
-                                 "datetime": links.get(uri).get("datetime")}
+                    uris[rel] = uris.get(rel, [])
+                    uris[rel].append({
+                        "uri": uri,
+                        "datetime": links.get(uri).get("datetime")
+                    })
         return uris
 
     @staticmethod
@@ -601,6 +726,8 @@ Status code received: {2}
         so does not follow any redirects.
         :return: the response object.
         """
+        logging.debug("Starting HTTP request: %s, %s" %
+                      (uri, repr(accept_datetime)))
         headers = {}
         if accept_datetime:
             headers["Accept-Datetime"] = accept_datetime

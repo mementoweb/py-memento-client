@@ -40,6 +40,7 @@ def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
         arc_id = link.attrib["id"]
         name = link.attrib["longname"]
         timegate_uri = link.find("timegate").attrib["uri"]
+        timemap_uri = link.find("timemap").attrib["uri"]
         memento_status = link.find("archive").attrib["memento-status"]
         mem_status = False
         if memento_status == "yes":
@@ -47,6 +48,7 @@ def get_archive_list(archive_registry_uri=DEFAULT_ARCHIVE_REGISTRY_URI):
 
         archive_list[arc_id] = {"name": name,
                                 "timegate_uri": timegate_uri,
+                                "timemap_uri": timemap_uri,
                                 "memento_status": mem_status}
 
     return archive_list
