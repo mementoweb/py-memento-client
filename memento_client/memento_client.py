@@ -214,59 +214,64 @@ class MementoClient(object):
                  else None.
         """
 
-        org_response = self.request_head(
-            original_uri, accept_datetime=self.convert_to_http_datetime(
-                accept_datetime))
+        try:
+            org_response = self.request_head(
+                original_uri, accept_datetime=self.convert_to_http_datetime(
+                    accept_datetime))
 
-        logging.debug("Request headers sent to search for URI-G:  " +
-                      str(org_response.request.headers))
+            logging.debug("Request headers sent to search for URI-G:  " +
+                          str(org_response.request.headers))
 
-        def follow():
-            """
-            a recursive func to follow redirects.
-            """
-            logging.debug("Following to new URI of " +
-                          org_response.headers.get("Location"))
-            return self.get_native_timegate_uri(
-                org_response.headers.get('Location'), accept_datetime)
+            def follow():
+                """
+                a recursive func to follow redirects.
+                """
+                logging.debug("Following to new URI of " +
+                              org_response.headers.get("Location"))
+                return self.get_native_timegate_uri(
+                    org_response.headers.get('Location'), accept_datetime)
 
-        if org_response.headers.get("Vary") and\
-                'accept-datetime' in org_response.headers.get('Vary').lower():
-            logging.debug("Vary header with Accept-Datetime found for URI-R: "
-                          + original_uri)
+            if org_response.headers.get("Vary") and\
+                    'accept-datetime' in org_response.headers.get('Vary').lower():
+                logging.debug("Vary header with Accept-Datetime found for URI-R: "
+                              + original_uri)
+                return
+
+            if 'Memento-Datetime' in org_response.headers:
+                logging.debug("Memento-Datetime found in headers for URI-R: {0},"
+                              " so assuming it is a URI-M.".
+                              format(original_uri))
+                return
+
+            if 299 < org_response.status_code < 400 \
+                    and self.native_redirect_count < self.max_redirects:
+                logging.debug("Been redirected from URI-R: " + original_uri)
+                self.native_redirect_count += 1
+                return follow()
+
+            if "Link" not in org_response.headers:
+                logging.debug("No URI-G found for URI-R: " + original_uri)
+                return
+
+            logging.debug("Received raw Link header:  " +
+                          str(org_response.headers.get("Link")))
+
+            link_header = self.parse_link_header(org_response.headers.get("Link"))
+            logging.debug("Received Link header:  " + str(link_header))
+            tg = self.get_uri_dt_for_rel(link_header, ["timegate"])
+
+            tg_uri = None
+
+            if "timegate" in tg:
+                tg_uri = tg["timegate"].get("uri")
+
+            logging.debug("Search for native URI-G yielded:  " + str(tg_uri))
+
+            return tg_uri
+
+        except requests.exceptions.ConnectTimeout as e:
+            logging.warning("Could not connect to URI {}, returning no native URI-G".format(original_uri))
             return
-
-        if 'Memento-Datetime' in org_response.headers:
-            logging.debug("Memento-Datetime found in headers for URI-R: {0},"
-                          " so assuming it is a URI-M.".
-                          format(original_uri))
-            return
-
-        if 299 < org_response.status_code < 400 \
-                and self.native_redirect_count < self.max_redirects:
-            logging.debug("Been redirected from URI-R: " + original_uri)
-            self.native_redirect_count += 1
-            return follow()
-
-        if "Link" not in org_response.headers:
-            logging.debug("No URI-G found for URI-R: " + original_uri)
-            return
-
-        logging.debug("Received raw Link header:  " +
-                      str(org_response.headers.get("Link")))
-
-        link_header = self.parse_link_header(org_response.headers.get("Link"))
-        logging.debug("Received Link header:  " + str(link_header))
-        tg = self.get_uri_dt_for_rel(link_header, ["timegate"])
-
-        tg_uri = None
-
-        if "timegate" in tg:
-            tg_uri = tg["timegate"].get("uri")
-
-        logging.debug("Search for native URI-G yielded:  " + str(tg_uri))
-
-        return tg_uri
 
     def get_original_uri(self, request_uri):
         """
@@ -277,15 +282,21 @@ class MementoClient(object):
         :param request_uri: the requested http uri.
         :return: (str) the original uri
         """
-        response = self.request_head(request_uri, accept_datetime=None,
-                                     follow_redirects=True)
-        if response.headers.get("Link"):
-            link_header = response.headers.get("Link")
-            links = self.parse_link_header(link_header)
-            org = self.get_uri_dt_for_rel(links, ["original"])
-            if org.get("original"):
-                logging.debug("Org URI from request uri headers: " + repr(org))
-                return org.get("original").get("uri")
+
+        try:
+            response = self.request_head(request_uri, accept_datetime=None,
+                                         follow_redirects=True)
+            if response.headers.get("Link"):
+                link_header = response.headers.get("Link")
+                links = self.parse_link_header(link_header)
+                org = self.get_uri_dt_for_rel(links, ["original"])
+                if org.get("original"):
+                    logging.debug("Org URI from request uri headers: " + repr(org))
+                    return org.get("original").get("uri")
+
+        except requests.exceptions.ConnectTimeout as e:
+            logging.warning(
+                "Could not connect to {}, using it as original URI".format(request_uri))
 
         return request_uri
 

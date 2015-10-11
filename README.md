@@ -2,6 +2,16 @@ The py-memento-client library provides Memento support, as specified in RFC 7089
 
 For more information about Memento, see http://www.mementoweb.org/about/
 
+# QUICK START
+
+Just type:
+```
+pip install memento_client
+```
+and you will have the latest stable release of this library.
+
+# BUILD
+
 This source distribution contains the following folders:
 
 * memento_client - the memento_client module
@@ -10,8 +20,6 @@ This source distribution contains the following folders:
 * README.md - this file
 * README.txt - symbolic link to README.md
 * setup.py - Python script for building this library
-
-# BUILD
 
 To build this distribution, just type:
 ```
@@ -37,7 +45,7 @@ This simple use case gets a Memento from the default Memento TimeGate for "http:
 
 ```python
 import datetime
-import memento_client
+from memento_client import MementoClient
 
 dt = datetime.datetime(2010, 4, 24, 19, 0)
 
@@ -52,7 +60,7 @@ One can specify a specific TimeGate like so.
 
 ```python
 import datetime
-import memento_client
+from memento_client import MementoClient
 
 dt = datetime.datetime(2010, 4, 24, 19, 0)
 uri = "http://lanl.gov"
