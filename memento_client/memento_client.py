@@ -269,8 +269,10 @@ class MementoClient(object):
 
             return tg_uri
 
-        except requests.exceptions.ConnectTimeout as e:
-            logging.warning("Could not connect to URI {}, returning no native URI-G".format(original_uri))
+        except (requests.exceptions.ConnectTimeout,
+                requests.exceptions.ConnectionError) as e:
+            logging.warning("Could not connect to URI {},"
+                            " returning no native URI-G".format(original_uri))
             return
 
     def get_original_uri(self, request_uri):
@@ -294,9 +296,11 @@ class MementoClient(object):
                     logging.debug("Org URI from request uri headers: " + repr(org))
                     return org.get("original").get("uri")
 
-        except requests.exceptions.ConnectTimeout as e:
+        except (requests.exceptions.ConnectTimeout,
+                requests.exceptions.ConnectionError) as e:
             logging.warning(
-                "Could not connect to {}, using it as original URI".format(request_uri))
+                "Could not connect to {},"
+                " using it as original URI".format(request_uri))
 
         return request_uri
 
