@@ -42,7 +42,8 @@ class MementoClient(object):
     def __init__(self,
                  timegate_uri=DEFAULT_TIMEGATE_BASE_URI,
                  check_native_timegate=True,
-                 max_redirects=MAX_REDIRECTS):
+                 max_redirects=MAX_REDIRECTS,
+                 session=None):
         """
         A Memento Client that makes it straightforward to access the Web of the
          past as it is to access the current Web.
@@ -87,6 +88,38 @@ class MementoClient(object):
         self.check_native_timegate = check_native_timegate
         self.native_redirect_count = 0
         self.max_redirects = max_redirects
+
+        if session:
+            self.session = session
+        else:
+            self.session = requests.Session()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """
+            Closes session connection if used in a with statement.
+        """
+
+        self.session.close()
+
+
+    def __enter__(self):
+        """
+            Opens session connection if used in a with statement.
+        """
+
+        if not self.session:
+            self.session = requests.Session()
+
+        return self
+
+
+    def __del__(self):
+        """
+            Closes session connection when called by garbage collector.
+        """
+
+        self.session.close()
+
 
     def get_memento_info(self, request_uri, accept_datetime=None):
         """
@@ -145,7 +178,8 @@ class MementoClient(object):
 
         response = self.request_head(timegate_uri,
                                      accept_datetime=http_acc_dt,
-                                     follow_redirects=True)
+                                     follow_redirects=True,
+                                     session=self.session)
 
         logging.debug("request method:  " + str(response.request.method))
         logging.debug("request URI:  " + str(response.request.url))
@@ -159,7 +193,7 @@ class MementoClient(object):
         mem_status = response.status_code
 
         # getting the memento datetime from the memento response headers
-        if self.is_memento(uri_m, response=response):
+        if self.is_memento(uri_m, response=response, session=self.session):
             dt_m = self.convert_to_datetime(
                 response.headers.get("Memento-Datetime"))
             # link_header = response.headers.get("Link")
@@ -217,7 +251,9 @@ class MementoClient(object):
         try:
             org_response = self.request_head(
                 original_uri, accept_datetime=self.convert_to_http_datetime(
-                    accept_datetime))
+                    accept_datetime),
+                session=self.session
+                )
 
             logging.debug("Request headers sent to search for URI-G:  " +
                           str(org_response.request.headers))
@@ -287,7 +323,8 @@ class MementoClient(object):
 
         try:
             response = self.request_head(request_uri, accept_datetime=None,
-                                         follow_redirects=True)
+                                         follow_redirects=True, session=self.session)
+
             if response.headers.get("Link"):
                 link_header = response.headers.get("Link")
                 links = self.parse_link_header(link_header)
@@ -304,7 +341,6 @@ class MementoClient(object):
 
         return request_uri
 
-    @staticmethod
     def is_timegate(uri, accept_datetime=None, response=None):
         """
         Checks if the given uri is a valid timegate according to the RFC.
@@ -321,8 +357,9 @@ class MementoClient(object):
                 accept_datetime = MementoClient.convert_to_http_datetime(
                     datetime.now())
 
-            response = MementoClient.request_head(
-                uri, accept_datetime=accept_datetime)
+            response = self.request_head(
+                uri, accept_datetime=accept_datetime,
+                session=self.session)
 
         if response.status_code != 302 and response.status_code != 200:
             raise MementoClientException("""
@@ -346,7 +383,7 @@ Status code received: {2}
         return False
 
     @staticmethod
-    def is_memento(uri, response=None):
+    def is_memento(uri, response=None, session=None):
         """
         Determines if the URI given is indeed a Memento.  The simple case is to
         look for a Memento-Datetime header in the request, but not all
@@ -358,8 +395,19 @@ Status code received: {2}
         :return: (bool) True if a Memento, False otherwise
         """
 
+        sessionSet = False
+
+        # create a session if not supplied
+        if not session:
+            session = requests.Session()
+            sessionSet = True
+
         if not response:
-            response = requests.head(uri, allow_redirects=False)
+            response = session.head(uri, allow_redirects=False)
+
+        # only close if we created our own session here
+        if sessionSet:
+            session.close()
 
         if 'Memento-Datetime' in response.headers:
 
@@ -529,7 +577,7 @@ Status code received: {2}
         return links
 
     @staticmethod
-    def request_head(uri, accept_datetime=None, follow_redirects=False):
+    def request_head(uri, accept_datetime=None, follow_redirects=False, session=None):
         """
         Makes HEAD requests.
         :param uri: (str) the uri for the request.
@@ -539,11 +587,23 @@ Status code received: {2}
         so does not follow any redirects.
         :return: the response object.
         """
+        sessionSet = False
         headers = {}
         if accept_datetime:
             headers["Accept-Datetime"] = accept_datetime
-        return requests.head(uri, headers=headers,
+
+        # create a session if not supplied
+        if not session:
+            session = requests.Session()
+            sessionSet = True
+
+        response = session.head(uri, headers=headers,
                              allow_redirects=follow_redirects)
+
+        if sessionSet:
+            session.close()
+
+        return response
 
     def __prepare_memento_response(self, uri_m=None, dt_m=None,
                                    link_header=None, status_code=None):

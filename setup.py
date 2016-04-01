@@ -63,13 +63,13 @@ class BetterClean(Command):
 
 setup(
     name="memento_client",
-    version="0.5.3",
+    version="0.5.4.dev1",
     url='https://github.com/mementoweb/py-memento-client',
     license='LICENSE.txt',
     author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
     author_email="prototeam@googlegroups.com",
     install_requires=['requests>=2.7.0'],
-    tests_require=['pytest-xdist', 'pytest'],
+    tests_require=['pytest-xdist', 'pytest', 'mock'],
     cmdclass={
         'test': PyTest,
         'cleanall': BetterClean
