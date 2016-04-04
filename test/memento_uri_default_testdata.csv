@@ -1,4 +1,3 @@
 "Input URI-R", "Accept-Datetime", "Expected URI-M"
 "http://www.cs.odu.edu", "Mon, 24 Apr 2010 19:00:00 GMT", "http://web.archive.org/web/20100502170247/http://www.cs.odu.edu"
-"http://www.lanl.gov", "Thu, 01 Jan 1970 00:00:00 GMT", "http://web.archive.bibalex.org:80/web/19961221031231/http://www.lanl.gov"
 "http://www.unm.edu", "Thu, 11 Dec 2013 14:00:04 GMT", "http://wayback.archive-it.org/all/20131212012956/http://www.unm.edu"

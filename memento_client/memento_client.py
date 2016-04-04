@@ -88,9 +88,11 @@ class MementoClient(object):
         self.check_native_timegate = check_native_timegate
         self.native_redirect_count = 0
         self.max_redirects = max_redirects
+        self.sessionSetOutside = False
 
         if session:
             self.session = session
+            self.sessionSetOutside = True
         else:
             self.session = requests.Session()
 
@@ -99,7 +101,8 @@ class MementoClient(object):
             Closes session connection if used in a with statement.
         """
 
-        self.session.close()
+        if not self.sessionSetOutside:
+            self.session.close()
 
 
     def __enter__(self):
@@ -118,7 +121,8 @@ class MementoClient(object):
             Closes session connection when called by garbage collector.
         """
 
-        self.session.close()
+        if not self.sessionSetOutside:
+            self.session.close()
 
 
     def get_memento_info(self, request_uri, accept_datetime=None):
@@ -159,7 +163,7 @@ class MementoClient(object):
             raise TypeError("Expecting accept_datetime to be of type "
                             "datetime.")
 
-        http_acc_dt = self.convert_to_http_datetime(accept_datetime)
+        http_acc_dt = MementoClient.convert_to_http_datetime(accept_datetime)
 
         # finding the actual original_uri in case the input uri is a memento
         original_uri = self.get_original_uri(request_uri)
@@ -176,7 +180,7 @@ class MementoClient(object):
 
         logging.debug("Using URI-G: " + timegate_uri)
 
-        response = self.request_head(timegate_uri,
+        response = MementoClient.request_head(timegate_uri,
                                      accept_datetime=http_acc_dt,
                                      follow_redirects=True,
                                      session=self.session)
@@ -202,7 +206,7 @@ class MementoClient(object):
         # so that these headers not locked in any one archive
         # when using the aggr.
         for res in response.history:
-            if self.is_timegate(timegate_uri, response=res):
+            if self.is_timegate(timegate_uri, response=res, session=self.session):
                 logging.debug("found URI-M from timegate response:  " + uri_m)
                 logging.debug("timegate uri: " + res.url)
 
@@ -249,8 +253,8 @@ class MementoClient(object):
         """
 
         try:
-            org_response = self.request_head(
-                original_uri, accept_datetime=self.convert_to_http_datetime(
+            org_response = MementoClient.request_head(
+                original_uri, accept_datetime=MementoClient.convert_to_http_datetime(
                     accept_datetime),
                 session=self.session
                 )
@@ -322,7 +326,7 @@ class MementoClient(object):
         """
 
         try:
-            response = self.request_head(request_uri, accept_datetime=None,
+            response = MementoClient.request_head(request_uri, accept_datetime=None,
                                          follow_redirects=True, session=self.session)
 
             if response.headers.get("Link"):
@@ -341,7 +345,8 @@ class MementoClient(object):
 
         return request_uri
 
-    def is_timegate(uri, accept_datetime=None, response=None):
+    @staticmethod
+    def is_timegate(uri, accept_datetime=None, response=None, session=None):
         """
         Checks if the given uri is a valid timegate according to the RFC.
         :param uri: the http uri to check.
@@ -357,9 +362,9 @@ class MementoClient(object):
                 accept_datetime = MementoClient.convert_to_http_datetime(
                     datetime.now())
 
-            response = self.request_head(
+            response = MementoClient.request_head(
                 uri, accept_datetime=accept_datetime,
-                session=self.session)
+                session=session)
 
         if response.status_code != 302 and response.status_code != 200:
             raise MementoClientException("""
@@ -397,17 +402,8 @@ Status code received: {2}
 
         sessionSet = False
 
-        # create a session if not supplied
-        if not session:
-            session = requests.Session()
-            sessionSet = True
-
         if not response:
-            response = session.head(uri, allow_redirects=False)
-
-        # only close if we created our own session here
-        if sessionSet:
-            session.close()
+            response = MementoClient.request_head(uri, follow_redirects=False)
 
         if 'Memento-Datetime' in response.headers:
 
