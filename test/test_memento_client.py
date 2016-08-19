@@ -177,7 +177,7 @@ def test_good_url_slash_at_end():
     
     uri_m = mc.get_memento_info(input_uri_r, dt).get("mementos").get("closest").get("uri")[0]
 
-    assert uri_m == 'http://webarchive.loc.gov/all/20010911181528/http://www.cnn.com/'
+    assert uri_m == 'http://webarchive.loc.gov/all/20010911181528/http://www2.cnn.com/'
 
 @mock.patch('requests.Session')
 def test_close_with_user_supplied_session(mock_session):
