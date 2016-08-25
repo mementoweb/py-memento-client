@@ -8,6 +8,11 @@ python:
     - "3.5"
 env:
     - DEBUG_MEMENTO_CLIENT=1
+install:
+    - "pip install requests"
+    - "pip install lxml"
+    - "pip install pytest-xdist"
+    - "pip install ."
 script:
     - python setup.py test
     - python setup.py sdist bdist_wheel
