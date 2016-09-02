@@ -198,7 +198,7 @@ class MementoClient(object):
 
         # checking if the timegate redirected. Its an error if not. 
         # raising an exception if there are no tg redirects
-        if len(response.history) == 0:
+        if len(response.history) == 0 and response.status_code != 404:
             raise MementoClientException(
                 "The TimeGate (%s) returned with HTTP status %s and did not redirect to a Memento." %
                 (timegate_uri, str(response.status_code)),
