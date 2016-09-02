@@ -149,7 +149,8 @@ def test_bad_timegate():
     mc = MementoClient(timegate_uri=bad_uri_g)
 
     #with pytest.raises(requests.ConnectionError):
-    with pytest.raises(memento_client.memento_client.MementoClientException):
+    with pytest.raises(requests.ConnectionError and 
+            memento_client.memento_client.MementoClientException):
         original_uri = mc.get_memento_info(input_uri_r, accept_datetime).get("original_uri")
 
 
