@@ -100,8 +100,9 @@ If the TimeGate has no Memento to return (i.e. the archive has no Memento for th
 ```python
 In [46]: mc = MementoClient(timegate_uri="http://timetravel.example.org/testing/timegate")
 
-In [47]: mc.get_memento_info("http://www.cnn.com", dt)Out[47]:
+In [47]: mc.get_memento_info("http://www.cnn.com", dt)
+Out[47]:
 {'original_uri': 'http://www.cnn.com',
- 'timegate_uri': 'http://timetravel.example.org/testing/timegatehttp://www.cnn.com'}
+ 'timegate_uri': 'http://timetravel.example.org/testing/timegate/http://www.cnn.com'}
 ```
 
