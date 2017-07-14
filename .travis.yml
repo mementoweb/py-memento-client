@@ -11,7 +11,7 @@ env:
 install:
     - "pip install requests"
     - "pip install lxml"
-    - "pip install pytest-xdist"
+    - "pip install -U pytest pytest-xdist"
     - "pip install ."
 script:
     - python setup.py test
