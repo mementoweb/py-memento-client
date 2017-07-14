@@ -211,3 +211,13 @@ def test_close_session_on_default(mock_session):
         urir = mc.get_original_uri('http://www.cnn.com')
 
     mock_session.close.assert_called_with()
+
+def test_relative_url_redirection():
+    input_uri_r = "http://httpbin.org/redirect/1"
+
+    mc = MementoClient()
+    dt = datetime.datetime.strptime("Tue, 11 Sep 2001 08:45:45 GMT", "%a, %d %b %Y %H:%M:%S GMT")
+
+    uri_m = mc.get_memento_info(input_uri_r, dt).get("mementos").get("closest").get("uri")[0]
+
+    assert uri_m == 'https://web.archive.org/web/20111202113952/http://www.httpbin.org:80/get'
