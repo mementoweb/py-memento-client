@@ -1,8 +1,9 @@
+# Memento Client ![Build Status](https://travis-ci.org/mementoweb/py-memento-client.svg?branch=master)
 The py-memento-client library provides Memento support, as specified in RFC 7089 (http://tools.ietf.org/html/rfc7089).
 
 For more information about Memento, see http://www.mementoweb.org/about/
 
-# QUICK START
+## QUICK START
 
 Just type:
 ```
@@ -10,7 +11,7 @@ pip install memento_client
 ```
 and you will have the latest stable release of this library.
 
-# BUILD
+## BUILD
 
 This source distribution contains the following folders:
 
@@ -39,7 +40,7 @@ python setup.py test
 ```
 Note that these rely upon live web resources, which may respond differently depending on network connectivity and location.
 
-# USING THE LIBRARY
+## USING THE LIBRARY
 
 This simple use case gets a Memento from the default Memento TimeGate for "http://lanl.gov" on April 24, 2010 at 19:00:00.
 
