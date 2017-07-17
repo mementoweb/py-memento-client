@@ -12,9 +12,9 @@ import os
 
 # Python 2.7 and 3.X support are different for urlparse
 if sys.version_info[0] == 3:
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse, urljoin
 else:
-    from urlparse import urlparse
+    from urlparse import urlparse, urljoin
 
 if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
     logging.basicConfig(level=logging.DEBUG)
@@ -281,10 +281,10 @@ class MementoClient(object):
                 """
                 a recursive func to follow redirects.
                 """
-                logging.debug("Following to new URI of " +
-                              org_response.headers.get("Location"))
-                return self.get_native_timegate_uri(
-                    org_response.headers.get('Location'), accept_datetime)
+                absolute_url = urljoin(original_uri,
+                                       org_response.headers.get('Location'))
+                logging.debug("Following to new URI of " + absolute_url)
+                return self.get_native_timegate_uri(absolute_url, accept_datetime)
 
             if org_response.headers.get("Vary") and\
                     'accept-datetime' in org_response.headers.get('Vary').lower():
