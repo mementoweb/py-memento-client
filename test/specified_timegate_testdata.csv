@@ -1,7 +1,0 @@
-"Input URI-R", "Accept-Datetime", "Input URI-G", "Expected URI-M"
-"http://www.lanl.gov","Wed, 19 Mar 2003 23:59:59 GMT","http://www.web.archive.org/web/","http://www.web.archive.org/web/20030401203752/http://www.lanl.gov/worldview/"
-"http://www.cnn.com","Tue, 28 Jul 1998 17:18:49 GMT","http://web.archive.org/web/","http://web.archive.org/web/20000815052826/http://www.cnn.com/"
-"http://www.huffingtonpost.com","Tue, 14 Jan 2003 10:31:44 GMT","http://web.archive.org/web/","http://web.archive.org/web/20050422005938/http://www.huffingtonpost.com/"
-"http://www.web.archive.org/web/20030401203752/http://www.lanl.gov/worldview/","Sat, 17 Dec 2005 19:47:47 GMT","http://www.web.archive.org/web/","http://www.web.archive.org/web/20051217134255/http://www.lanl.gov/"
-"http://web.archive.org/web/20000815052826/http://www.cnn.com/","Sat, 18 Oct 2014 12:08:55 GMT","http://web.archive.org/web/","http://web.archive.org/web/20141018123331/http://www.cnn.com/"
-"http://web.archive.org/web/20050422005938/http://www.huffingtonpost.com/","Fri, 03 Apr 1998 08:02:45 GMT","http://web.archive.org/web/","http://web.archive.org/web/20050422005938/http://www.huffingtonpost.com/"

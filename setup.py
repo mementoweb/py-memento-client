@@ -63,13 +63,13 @@ class BetterClean(Command):
 
 setup(
     name="memento_client",
-    version="0.5.4.dev1",
+    version="0.6.0",
     url='https://github.com/mementoweb/py-memento-client',
     license='LICENSE.txt',
     author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
     author_email="prototeam@googlegroups.com",
     install_requires=['requests>=2.7.0'],
-    tests_require=['pytest-xdist', 'pytest', 'mock'],
+    tests_require=['pytest-xdist', 'pytest', 'mock', "memento_test>=0.1.3", "werkzeug>=0.12"],
     cmdclass={
         'test': PyTest,
         'cleanall': BetterClean
@@ -103,6 +103,8 @@ This library allows one to find information about archived web pages using the M
         'Topic :: Utilities',
 
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4'
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6'
     ]
 )
