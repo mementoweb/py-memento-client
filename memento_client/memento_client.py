@@ -12,11 +12,9 @@ import os
 
 # Python 2.7 and 3.X support are different for urlparse
 if sys.version_info[0] == 3:
-    from urllib.parse import urlparse
-    from urllib.parse import urljoin
+    from urllib.parse import urlparse, urljoin
 else:
-    from urlparse import urlparse
-    from urlparse import urljoin
+    from urlparse import urlparse, urljoin
 
 if os.environ.get('DEBUG_MEMENTO_CLIENT') == '1':
     logging.basicConfig(level=logging.DEBUG)
@@ -209,8 +207,8 @@ class MementoClient(object):
         if len(response.history) == 0 and \
                 response.status_code not in [200, 404]:
             raise MementoClientException(
-                "The TimeGate (%s) returned with HTTP status %s and did not \
-                redirect to a Memento." %
+                ("The TimeGate (%s) returned with HTTP status %s and did not "
+                 "redirect to a Memento.") %
                 (timegate_uri, str(response.status_code)),
                 {"timegate_uri": timegate_uri,
                  "original_uri": original_uri,
@@ -397,15 +395,16 @@ class MementoClient(object):
                 session=session)
 
         if response.status_code != 302 and response.status_code != 200:
-            raise MementoClientException("""
-TimeGate did not respond with a 302 redirect or 200 OK HTTP status code
-URI:  {0}
-Accept-Datetime:  {1}
-Status code received: {2}
-        """.format(uri, accept_datetime, str(response.status_code)),
-                                         {"status_code": response.status_code,
-                                          "timegate_uri": uri,
-                                          "accept_datetime": accept_datetime})
+            raise MementoClientException(
+                ("TimeGate did not respond with a 302 redirect or 200 OK HTTP "
+                 "status code\n"
+                 "URI:  {0}\n"
+                 "Accept-Datetime:  {1}\n"
+                 "Status code received: {2}\n"
+                 ).format(uri, accept_datetime, str(response.status_code)),
+                {"status_code": response.status_code,
+                 "timegate_uri": uri,
+                 "accept_datetime": accept_datetime})
 
         links = MementoClient.parse_link_header(response.headers.get("Link"))
         original_uri = MementoClient.get_uri_dt_for_rel(links, ["original"])

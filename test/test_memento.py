@@ -282,7 +282,7 @@ class MementoTest(unittest.TestCase):
         assert isinstance(MementoClient.convert_to_datetime("Sun, 01 Apr 2010 12:00:00 GMT"), datetime)
         with self.assertRaises(ValueError):
             isinstance(MementoClient.convert_to_datetime("Sun, 01 Apr 2010 12:00:00 G"), datetime)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             isinstance(MementoClient.convert_to_datetime(datetime.now()), datetime)
 
         assert MementoClient.convert_to_datetime("") is None
