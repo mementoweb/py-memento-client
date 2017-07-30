@@ -63,7 +63,7 @@ class BetterClean(Command):
 
 setup(
     name="memento_client",
-    version="0.6.0",
+    version="0.6.1",
     url='https://github.com/mementoweb/py-memento-client',
     license='LICENSE.txt',
     author="Harihar Shankar, Shawn M. Jones, Herbert Van de Sompel",
