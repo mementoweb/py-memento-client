@@ -139,9 +139,9 @@ class MementoClient(object):
                  closest/prev/next/first/last mementos.
         """
 
-        req_uri_response = kwargs.pop("req_uri_response")  # for reading the headers of the req uri to find uri_r
-        org_response = kwargs.pop("org_response")  # for checking native tg uri in uri_r
-        tg_response = kwargs.pop("tg_response")
+        req_uri_response = kwargs.get("req_uri_response")  # for reading the headers of the req uri to find uri_r
+        org_response = kwargs.get("org_response")  # for checking native tg uri in uri_r
+        tg_response = kwargs.get("tg_response")
 
         if not accept_datetime:
             accept_datetime = datetime.now()
