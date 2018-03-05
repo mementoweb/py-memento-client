@@ -7,7 +7,7 @@ from werkzeug.wrappers import BaseResponse
 import unittest
 import logging
 from datetime import datetime
-from copy import deepcopy
+import requests
 
 #logging.getLogger(__name__)
 #logging.basicConfig(level=logging.DEBUG)
@@ -374,6 +374,25 @@ class MementoTest(unittest.TestCase):
         tg_res.history = []
         tg_res.history.append(tg_res)
         return req_url, org_res, tg_res
+
+    def test_get_memento_info_timeout(self):
+
+        mc = MementoClient()
+        with self.assertRaises(requests.ReadTimeout):
+            mc.get_memento_info("http://www.icann.org/en/tlds/agreements/cat/cat-agreement-23sep05.htm",
+                                     datetime.now()).get("mementos")
+
+            mc.get_memento_info("http://www.icann.org/en/tlds/agreements/cat/cat-agreement-23sep05.htm",
+                                datetime.now(), timeout=15).get("mementos")
+
+            mc.is_memento("http://www.icann.org/en/tlds/agreements/cat/cat-agreement-23sep05.htm",
+                          datetime.now(), timeout=3)
+            mc.is_timegate("http://www.icann.org/en/tlds/agreements/cat/cat-agreement-23sep05.htm",
+                          datetime.now(), timeout=3)
+            mc.check_native_timegate("http://www.icann.org/en/tlds/agreements/cat/cat-agreement-23sep05.htm",
+                           datetime.now(), timeout=3)
+
+
 
     def test_get_memento_info(self):
 

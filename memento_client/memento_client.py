@@ -122,7 +122,10 @@ class MementoClient(object):
         if not self.sessionSetOutside:
             self.session.close()
 
-    def get_memento_info(self, request_uri, accept_datetime=None, **kwargs):
+    def get_memento_info(self, request_uri,
+                         accept_datetime=None,
+                         timeout=None,
+                         **kwargs):
         """
         Given an original uri and an accept datetime, this method queries the
         preferred timegate and returns the closest memento uri, along with
@@ -135,6 +138,7 @@ class MementoClient(object):
         :param accept_datetime: (datetime) The datetime object of the accept
                                 datetime. The current datetime is used if none
                                 is provided.
+        :param timeout: (int) the timeout value for the HTTP connection.
         :return: (dict) A map of uri and datetime for the
                  closest/prev/next/first/last mementos.
         """
@@ -185,7 +189,8 @@ class MementoClient(object):
             response = MementoClient.request_head(timegate_uri,
                                                   accept_datetime=http_acc_dt,
                                                   follow_redirects=True,
-                                                  session=self.session)
+                                                  session=self.session,
+                                                  timeout=timeout)
         else:
             response = tg_response
 
@@ -260,7 +265,11 @@ class MementoClient(object):
                                             status_code=mem_status))
         return memento_info
 
-    def get_native_timegate_uri(self, original_uri, accept_datetime, **kwargs):
+    def get_native_timegate_uri(self,
+                                original_uri,
+                                accept_datetime,
+                                timeout=None,
+                                **kwargs):
         """
         Given an original URL and an accept datetime, check the original uri
         to see if the timegate uri is provided in the Link header.
@@ -268,6 +277,7 @@ class MementoClient(object):
         :param original_uri: (str) An HTTP uri of the original resource.
         :param accept_datetime: (datetime) The datetime object of the accept
                                 datetime
+        :param timeout: (int) the timeout value for the HTTP connection.
         :return: (str) The timegate uri of the original resource, if provided,
                  else None.
         """
@@ -277,9 +287,11 @@ class MementoClient(object):
         if not org_response:
             try:
                 org_response = MementoClient.request_head(
-                    original_uri, accept_datetime=MementoClient.convert_to_http_datetime(
+                    original_uri,
+                    accept_datetime=MementoClient.convert_to_http_datetime(
                         accept_datetime),
-                    session=self.session
+                    session=self.session,
+                    timeout=timeout
                     )
             except (requests.exceptions.ConnectTimeout,
                     requests.exceptions.ConnectionError) as e:
@@ -341,13 +353,14 @@ class MementoClient(object):
 
         return tg_uri
 
-    def get_original_uri(self, request_uri, **kwargs):
+    def get_original_uri(self, request_uri, timeout=None, **kwargs):
         """
         Returns the original uri of the given request uri. Checks for
         rel=original in the response headers of the request uri.
         Useful when the request uri is a memento, so that the original uri
         can be used to for the timegate, instead of the memento uri.
         :param request_uri: the requested http uri.
+        :param timeout: (int) the timeout value for the HTTP connection.
         :return: (str) the original uri
         """
 
@@ -355,8 +368,13 @@ class MementoClient(object):
 
         if not response:
             try:
-                response = MementoClient.request_head(request_uri, accept_datetime=None,
-                                         follow_redirects=True, session=self.session)
+                response = MementoClient.request_head(
+                    request_uri,
+                    accept_datetime=None,
+                    follow_redirects=True,
+                    session=self.session,
+                    timeout=timeout
+                )
             except (requests.exceptions.ConnectTimeout,
                     requests.exceptions.ConnectionError) as e:
                 logging.warning(
@@ -374,7 +392,7 @@ class MementoClient(object):
         return request_uri
 
     @staticmethod
-    def is_timegate(uri, accept_datetime=None, response=None, session=None):
+    def is_timegate(uri, accept_datetime=None, response=None, session=None, timeout=None):
         """
         Checks if the given uri is a valid timegate according to the RFC.
         :param uri: the http uri to check.
@@ -382,6 +400,8 @@ class MementoClient(object):
                                 http date format.
         :param response: (request's response obj)[optional] the response
                             object of the uri.
+        :param session: (obj)[optional] the requests session object.
+        :param timeout: (int) the timeout value for the HTTP connection.
         :return: (bool) True if a valid timegate, else False.
         """
 
@@ -391,8 +411,11 @@ class MementoClient(object):
                     datetime.now())
 
             response = MementoClient.request_head(
-                uri, accept_datetime=accept_datetime,
-                session=session)
+                uri,
+                accept_datetime=accept_datetime,
+                session=session,
+                timeout=timeout
+            )
 
         if response.status_code != 302 and response.status_code != 200:
             raise MementoClientException(
@@ -425,7 +448,7 @@ class MementoClient(object):
         return False
 
     @staticmethod
-    def is_memento(uri, response=None, session=None):
+    def is_memento(uri, response=None, session=None, timeout=None):
         """
         Determines if the URI given is indeed a Memento.  The simple case is to
         look for a Memento-Datetime header in the request, but not all
@@ -434,13 +457,18 @@ class MementoClient(object):
         :param uri: (str) an HTTP URI for testing
         :param response: (request's response obj)[optional] the response object
                             of the uri.
+        :param session: (obj)[optional] the requests session object.
+        :param timeout: (int) the timeout value for the HTTP connection.
         :return: (bool) True if a Memento, False otherwise
         """
 
-        sessionSet = False
-
         if not response:
-            response = MementoClient.request_head(uri, follow_redirects=False)
+            response = MementoClient.request_head(
+                uri,
+                follow_redirects=False,
+                session=session,
+                timeout=timeout
+            )
 
         if 'Memento-Datetime' in response.headers:
             if response.status_code == 302 and \
@@ -614,16 +642,23 @@ class MementoClient(object):
         return links
 
     @staticmethod
-    def request_head(uri, accept_datetime=None, follow_redirects=False, session=None):
+    def request_head(uri,
+                     accept_datetime=None,
+                     follow_redirects=False,
+                     session=None,
+                     timeout=None):
         """
         Makes HEAD requests.
         :param uri: (str) the uri for the request.
         :param accept_datetime: (str) the accept-datetime in the http format.
         :param follow_redirects: (boolean) Toggle to follow redirects.
-                                 False by default,
-        so does not follow any redirects.
+                                 False by default, so does not follow any redirects.
+        :param session: (obj)[optional] the request session object to avoid opening
+                        new connections for every request.
+        :param timeout: (int) the timeout for the HTTP requests.
         :return: the response object.
         """
+
         sessionSet = False
         headers = {}
         if accept_datetime:
@@ -634,8 +669,13 @@ class MementoClient(object):
             session = requests.Session()
             sessionSet = True
 
-        response = session.head(uri, headers=headers,
-                             allow_redirects=follow_redirects)
+        if not timeout:
+            timeout = 9
+
+        response = session.head(uri,
+                                headers=headers,
+                                allow_redirects=follow_redirects,
+                                timeout=timeout)
 
         if sessionSet:
             session.close()
